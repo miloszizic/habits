@@ -20,11 +20,14 @@ func RunCli() {
 		if err != nil {
 			fmt.Printf("failed to read %s: %s\n", habitsFileName, err)
 		}
-		os.Exit(1)
+		os.Exit(1) // Can it stay here ? Recommended in the main.go
 	}
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
 		for _, item := range *l {
+			if item.Done == true {
+				continue
+			}
 			fmt.Println(item.Name)
 		}
 		return
@@ -46,6 +49,6 @@ func RunCli() {
 		if err != nil {
 			fmt.Printf("failed to save to file %s with following error: %s\n", habitsFileName, err)
 		}
-		os.Exit(1)
+		os.Exit(1) // Can it stay here ? Recommended in the main.go
 	}
 }

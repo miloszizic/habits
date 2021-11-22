@@ -26,28 +26,28 @@ type List []Habit
 
 //Add method is adding a new habit to the list of Habits
 func (l *List) Add(name string) error {
-
+	ls := *l
 	t := Habit{
 		Name:      name,
 		Done:      false,
 		LastCheck: Now().Round(time.Hour),
 		Streak:    1,
 	}
-	*l = append(*l, t)
+	*l = append(ls, t)
 	fmt.Printf("Good luck with your new %s habit. Don't forget to do it again tomorrow.", name)
 	return nil
 }
 
 //Delete method deletes a Habit from the list of Habits
-func (l *List) Delete(name string) error {
+func (l *List) Delete(i int) error {
 	ls := *l
-	for i, k := range ls {
-		if k.Name == name {
-			*l = append(ls[:i], ls[i+1:]...)
-			return nil
-		}
+	if i < 0 || i > len(ls) {
+		return fmt.Errorf("item %d does not exist", i)
 	}
-	return errors.New("that habit doesn't exist")
+	// Adjusting index for 0 based index
+	*l = append(ls[:i], ls[i+1:]...)
+
+	return nil
 }
 
 //Save method encodes the List as JSON and saves it
@@ -105,14 +105,17 @@ func (l *List) DecisionsHandler(i int, now time.Time) {
 	ls := *l
 	days, err := l.LastCheckDays(now, ls[i])
 	if err != nil {
-		log.Fatalf("checking the last day chack with an %v, can't make a decission", err)
+		log.Printf("checking the last day chack with an %v, can't make a decission", err)
 	}
 
 	switch {
+	case days == 0 || days == 1 && ls[i].Done == true:
+		fmt.Printf("You already finished the %v habit", ls[i].Name)
 	case days == 0:
 		fmt.Printf("Nice work: you've done the habit '%s' for %v days in a row Now.", ls[i].Name, ls[i].Streak)
 	case days == 1 && ls[i].Streak == 29:
 		l.UpdateYesterday(now, i)
+		ls[i].Done = true
 		fmt.Printf("Congratulations, this is your %dth day for '%s' habit. You finished successfully!!", ls[i].Streak, ls[i].Name)
 	case days == 1 && ls[i].Streak > 15:
 		l.UpdateYesterday(now, i)
@@ -135,8 +138,5 @@ func (l *List) Get(filename string) error {
 			log.Print("file doesn't not exist")
 		}
 	}
-	//if len(file) == 0 {
-	//	log.Println("file is empty")
-	//}
 	return json.Unmarshal(file, l)
 }

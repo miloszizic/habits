@@ -42,7 +42,7 @@ func TestDelete(t *testing.T) {
 		{Name: "code", Streak: 4},
 	}
 
-	err := l.Delete("piano")
+	err := l.Delete(0)
 	if err != nil {
 		t.Fatalf("failed to delete habit from the list: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestDeleteInvalid(t *testing.T) {
 		{Name: "100daysOfGo"},
 		{Name: "devops"},
 	}
-	err := l.Delete("java")
+	err := l.Delete(4)
 	if err == nil {
 		t.Errorf("expected error for nonexistent habit got nil")
 	}
@@ -191,15 +191,17 @@ func TestUpdateYesterday(t *testing.T) {
 func TestDecisionsHandler(t *testing.T) {
 	//time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 	t.Parallel()
-	k8sLastCheck := time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
-	codeLastCheck := time.Date(2021, 12, 11, 18, 9, 0, 0, time.UTC)
-	goLastCheck := time.Date(2021, 12, 14, 15, 9, 0, 0, time.UTC)
+	sameDay := time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
+	threeDays := time.Date(2021, 12, 11, 18, 9, 0, 0, time.UTC)
+	dayBefore := time.Date(2021, 12, 14, 15, 9, 0, 0, time.UTC)
 	l := habits.List{
-		{Name: "k8s", LastCheck: k8sLastCheck, Streak: 4},
-		{Name: "piano", LastCheck: codeLastCheck, Streak: 4},
-		{Name: "code", LastCheck: codeLastCheck, Streak: 4},
-		{Name: "Go", LastCheck: goLastCheck, Streak: 4},
-		{Name: "docker", LastCheck: goLastCheck, Streak: 16},
+		{Name: "k8s", LastCheck: sameDay, Streak: 4},
+		{Name: "piano", LastCheck: threeDays, Streak: 4},
+		{Name: "code", LastCheck: threeDays, Streak: 4},
+		{Name: "Go", LastCheck: dayBefore, Streak: 4},
+		{Name: "docker", LastCheck: dayBefore, Streak: 16},
+		{Name: "SQL", LastCheck: dayBefore, Streak: 30, Done: true},
+		{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
 	}
 	want := habits.List{
 		{Name: "k8s", LastCheck: Now(), Streak: 4},
@@ -207,6 +209,8 @@ func TestDecisionsHandler(t *testing.T) {
 		{Name: "code", LastCheck: Now(), Streak: 1},
 		{Name: "Go", LastCheck: Now(), Streak: 5},
 		{Name: "docker", LastCheck: Now(), Streak: 17},
+		{Name: "SQL", LastCheck: dayBefore, Streak: 30, Done: true},
+		{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
 	}
 	habitNames := []string{"k8s", "piano", "code", "Go", "docker"}
 	//os.Stdout = nil
