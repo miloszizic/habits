@@ -109,7 +109,7 @@ func (l *List) DecisionsHandler(i int, now time.Time) {
 	}
 
 	switch {
-	case days == 0 || days == 1 && ls[i].Done == true:
+	case days == 0 || days == 1 && ls[i].Done:
 		fmt.Printf("You already finished the %v habit", ls[i].Name)
 	case days == 0:
 		fmt.Printf("Nice work: you've done the habit '%s' for %v days in a row Now.", ls[i].Name, ls[i].Streak)

@@ -25,7 +25,7 @@ func RunCli() {
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
 		for _, item := range *l {
-			if item.Done == true {
+			if item.Done {
 				continue
 			}
 			fmt.Println(item.Name)
