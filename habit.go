@@ -112,7 +112,7 @@ func (l *List) DecisionsHandler(w io.Writer, i int, now time.Time) {
 		fmt.Fprintf(w, "Congratulations, this is your %dth day for '%s' habit. You finished successfully!!\n", ls[i].Streak, ls[i].Name)
 	case days == 1 && ls[i].Streak > 15:
 		l.UpdateYesterday(now, i)
-		fmt.Fprintf(w, "You're currently on a %d -day streak for '%s'. Stick to it!\n", ls[i].Streak, ls[i].Name)
+		fmt.Fprintf(w, "You're currently on a %d-day streak for '%s'. Stick to it!\n", ls[i].Streak, ls[i].Name)
 	case days == 1:
 		l.UpdateYesterday(now, i)
 		fmt.Fprintf(w, "Nice work: you've done the habit '%s' for %v days in a row Now.\n", ls[i].Name, ls[i].Streak)
@@ -128,7 +128,7 @@ func (l *List) Get(filename string) error {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			errors.New("file doesn't not exist")
+			fmt.Printf("reading file failed: %v\n", err)
 		}
 	}
 	return json.Unmarshal(file, l)
