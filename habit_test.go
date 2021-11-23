@@ -1,6 +1,7 @@
 package habits_test
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -15,13 +16,16 @@ var Now = func() time.Time {
 	return time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 }
 
+// Output is Default terminal
+
 //TestAdd tests adding a habit to a slice of habits
 func TestAdd(t *testing.T) {
 	t.Parallel()
+	w := new(bytes.Buffer)
 	l := habits.List{}
 	habitName := "piano"
 	//os.Stdout = nil
-	err := l.Add(habitName)
+	err := l.Add(w, habitName)
 	if err != nil {
 		t.Errorf("adding habit failed with error: %v", err)
 	}
@@ -77,7 +81,6 @@ func TestSaveGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating temp file: %s", err)
 	}
-	// removing the tmp file
 	defer func(name string) {
 		err := os.Remove(name)
 		if err != nil {
@@ -93,6 +96,12 @@ func TestSaveGet(t *testing.T) {
 	}
 	if !cmp.Equal(l1, l2) {
 		t.Error(cmp.Diff(l1, l2))
+	}
+}
+func TestGetFailure(t *testing.T) {
+	l := habits.List{}
+	if err := l.Get("fail.txt"); err == nil {
+		t.Fatal("reading nonexistent file should give an error, got nil")
 	}
 }
 
@@ -114,9 +123,7 @@ func TestLastCheckDays(t *testing.T) {
 		t.Errorf("want %v, got %v", want, got)
 	}
 }
-
-//TestLastCheckDaysNegative is testing checking from future time
-func TestLastCheckDaysNegative(t *testing.T) {
+func TestLastCheckDaysInvalid(t *testing.T) {
 	t.Parallel()
 	mokLastCheck := time.Date(2021, 12, 17, 17, 8, 0, 0, time.UTC)
 	l := habits.List{
@@ -124,9 +131,9 @@ func TestLastCheckDaysNegative(t *testing.T) {
 	}
 	habitName := "piano"
 	i, _ := l.Find(habitName)
-	got, err := l.LastCheckDays(Now(), l[i])
+	_, err := l.LastCheckDays(Now(), l[i])
 	if err == nil {
-		t.Errorf("expexted error for habit from future got: %v", got)
+		t.Fatal(" expected error got nil")
 	}
 }
 
@@ -191,6 +198,7 @@ func TestUpdateYesterday(t *testing.T) {
 func TestDecisionsHandler(t *testing.T) {
 	//time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 	t.Parallel()
+	w := new(bytes.Buffer)
 	sameDay := time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 	threeDays := time.Date(2021, 12, 11, 18, 9, 0, 0, time.UTC)
 	dayBefore := time.Date(2021, 12, 14, 15, 9, 0, 0, time.UTC)
@@ -200,7 +208,7 @@ func TestDecisionsHandler(t *testing.T) {
 		{Name: "code", LastCheck: threeDays, Streak: 4},
 		{Name: "Go", LastCheck: dayBefore, Streak: 4},
 		{Name: "docker", LastCheck: dayBefore, Streak: 16},
-		{Name: "SQL", LastCheck: dayBefore, Streak: 30, Done: true},
+		{Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false},
 		{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
 	}
 	want := habits.List{
@@ -209,14 +217,14 @@ func TestDecisionsHandler(t *testing.T) {
 		{Name: "code", LastCheck: Now(), Streak: 1},
 		{Name: "Go", LastCheck: Now(), Streak: 5},
 		{Name: "docker", LastCheck: Now(), Streak: 17},
-		{Name: "SQL", LastCheck: dayBefore, Streak: 30, Done: true},
+		{Name: "SQL", LastCheck: Now(), Streak: 30, Done: true},
 		{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
 	}
-	habitNames := []string{"k8s", "piano", "code", "Go", "docker"}
+	habitNames := []string{"k8s", "piano", "code", "Go", "docker", "SQL", "NoSQL"}
 	//os.Stdout = nil
 	for _, name := range habitNames {
 		i, _ := l.Find(name)
-		l.DecisionsHandler(i, Now())
+		l.DecisionsHandler(w, i, Now())
 	}
 
 	if !cmp.Equal(want, l) {

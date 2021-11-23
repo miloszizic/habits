@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -25,7 +26,7 @@ var Now = time.Now
 type List []Habit
 
 //Add method is adding a new habit to the list of Habits
-func (l *List) Add(name string) error {
+func (l *List) Add(w io.Writer, name string) error {
 	ls := *l
 	t := Habit{
 		Name:      name,
@@ -34,7 +35,7 @@ func (l *List) Add(name string) error {
 		Streak:    1,
 	}
 	*l = append(ls, t)
-	fmt.Printf("Good luck with your new %s habit. Don't forget to do it again tomorrow.", name)
+	fmt.Fprintf(w, "Good luck with your new %s habit. Don't forget to do it again tomorrow.\n", name)
 	return nil
 }
 
@@ -44,7 +45,6 @@ func (l *List) Delete(i int) error {
 	if i < 0 || i > len(ls) {
 		return fmt.Errorf("item %d does not exist", i)
 	}
-	// Adjusting index for 0 based index
 	*l = append(ls[:i], ls[i+1:]...)
 
 	return nil
@@ -55,7 +55,7 @@ func (l *List) Delete(i int) error {
 func (l *List) Save(filename string) error {
 	js, err := json.Marshal(l)
 	if err != nil {
-		log.Printf(" saving a file failed with: %v\n", err)
+		log.Printf(" marshaling to JSON failed : %v \n", err)
 	}
 	return ioutil.WriteFile(filename, js, 0644)
 }
@@ -69,12 +69,9 @@ func (l List) LastCheckDays(now time.Time, h Habit) (int, error) {
 			if days >= 0 {
 				return days, nil
 			}
-			if days < 0 {
-				return -1, errors.New("last check can't be in the future")
-			}
 		}
 	}
-	return -1, errors.New("can't check the dates") //error or -1
+	return -1, errors.New("the dates can't be checked ") //error or -1
 }
 
 //Find method returns true and habit if it finds it
@@ -101,31 +98,27 @@ func (l *List) UpdateYesterday(now time.Time, i int) {
 
 //DecisionsHandler makes decisions based on the number of days between today's date
 //and date habit was last checked
-func (l *List) DecisionsHandler(i int, now time.Time) {
+func (l *List) DecisionsHandler(w io.Writer, i int, now time.Time) {
 	ls := *l
-	days, err := l.LastCheckDays(now, ls[i])
-	if err != nil {
-		log.Printf("checking the last day chack with an %v, can't make a decission", err)
-	}
-
+	days, _ := l.LastCheckDays(now, ls[i])
 	switch {
-	case days == 0 || days == 1 && ls[i].Done:
-		fmt.Printf("You already finished the %v habit", ls[i].Name)
+	case days >= 0 && ls[i].Done:
+		fmt.Fprintf(w, "You already finished the %v habit.\n", ls[i].Name)
 	case days == 0:
-		fmt.Printf("Nice work: you've done the habit '%s' for %v days in a row Now.", ls[i].Name, ls[i].Streak)
+		fmt.Fprintf(w, "Nice work: you've done the habit '%s' for %v days in a row Now.\n", ls[i].Name, ls[i].Streak)
 	case days == 1 && ls[i].Streak == 29:
 		l.UpdateYesterday(now, i)
 		ls[i].Done = true
-		fmt.Printf("Congratulations, this is your %dth day for '%s' habit. You finished successfully!!", ls[i].Streak, ls[i].Name)
+		fmt.Fprintf(w, "Congratulations, this is your %dth day for '%s' habit. You finished successfully!!\n", ls[i].Streak, ls[i].Name)
 	case days == 1 && ls[i].Streak > 15:
 		l.UpdateYesterday(now, i)
-		fmt.Printf("You're currently on a %d -day streak for '%s'. Stick to it!", ls[i].Streak, ls[i].Name)
+		fmt.Fprintf(w, "You're currently on a %d -day streak for '%s'. Stick to it!\n", ls[i].Streak, ls[i].Name)
 	case days == 1:
 		l.UpdateYesterday(now, i)
-		fmt.Printf("Nice work: you've done the habit '%s' for %v days in a row Now.", ls[i].Name, ls[i].Streak)
+		fmt.Fprintf(w, "Nice work: you've done the habit '%s' for %v days in a row Now.\n", ls[i].Name, ls[i].Streak)
 	case days >= 3:
 		l.Break(now, i)
-		fmt.Printf("You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!", ls[i].Name, days)
+		fmt.Fprintf(w, "You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n", ls[i].Name, days)
 	}
 }
 
@@ -135,7 +128,7 @@ func (l *List) Get(filename string) error {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			log.Print("file doesn't not exist")
+			errors.New("file doesn't not exist")
 		}
 	}
 	return json.Unmarshal(file, l)

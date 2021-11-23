@@ -2,6 +2,7 @@ package habits
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -10,6 +11,8 @@ import (
 const habitsFileName = ".habits.json"
 
 func RunCli() {
+	// Output is Default terminal
+	var w io.Writer = os.Stdout
 	// Define an items list
 	l := &List{}
 	//Parse the habit
@@ -35,13 +38,13 @@ func RunCli() {
 	//Making a decision
 	i, found := l.Find(habitName)
 	if !found {
-		err := l.Add(habitName)
+		err := l.Add(w, habitName)
 		if err != nil {
 			fmt.Println("failed to add the habit with error:", err)
 		}
 	}
 	if found {
-		l.DecisionsHandler(i, Now())
+		l.DecisionsHandler(w, i, Now())
 	}
 	// Save the new habit to the file
 	if err := l.Save(habitsFileName); err != nil {
