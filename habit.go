@@ -22,38 +22,52 @@ type Habit struct {
 //Now passes the current system time
 var Now = time.Now
 
-//List is a list of Habits
-type List []Habit
+//Store is a list of Habits
+
+type Store struct {
+	Habits []Habit
+	Output io.Writer
+}
+
+func PrintStore() Store {
+	return Store{
+		Output: os.Stdout,
+	}
+}
+func (s Store) Print(massage string) {
+	fmt.Fprintln(s.Output, massage)
+}
+
+//func (p PrintStore) Print(text string, a ...interface{}) {
+//	fmt.Fprintf( text, a...)
+//}
 
 //Add method is adding a new habit to the list of Habits
-func (l *List) Add(w io.Writer, name string) error {
-	ls := *l
-	t := Habit{
+func (s *Store) Add(name string) {
+	s.Habits = append(s.Habits, Habit{
 		Name:      name,
 		Done:      false,
 		LastCheck: Now().Round(time.Hour),
 		Streak:    1,
-	}
-	*l = append(ls, t)
-	fmt.Fprintf(w, "Good luck with your new %s habit. Don't forget to do it again tomorrow.\n", name)
-	return nil
+	})
+	s.Print("Good luck with your new" + name + "habit. Don't forget to do it again tomorrow.\n")
+	//Print("Good luck with your new %v habit. Don't forget to do it again tomorrow.\n", name)
+	//fmt.Fprintf(os.Stdout, "Good luck with your new %s habit. Don't forget to do it again tomorrow.\n", name)
 }
 
 //Delete method deletes a Habit from the list of Habits
-func (l *List) Delete(i int) error {
-	ls := *l
-	if i < 0 || i > len(ls) {
+func (s *Store) Delete(i int) error {
+	if i < 0 || i > len(s.Habits) {
 		return fmt.Errorf("item %d does not exist", i)
 	}
-	*l = append(ls[:i], ls[i+1:]...)
-
+	s.Habits = append(s.Habits[:i], s.Habits[i+1:]...)
 	return nil
 }
 
-//Save method encodes the List as JSON and saves it
+//Save method encodes the Store as JSON and saves it
 //using the provided file name
-func (l *List) Save(filename string) error {
-	js, err := json.Marshal(l)
+func (s *Store) Save(filename string) error {
+	js, err := json.Marshal(s.Habits)
 	if err != nil {
 		log.Printf(" marshaling to JSON failed : %v \n", err)
 	}
@@ -61,8 +75,8 @@ func (l *List) Save(filename string) error {
 }
 
 //LastCheckDays method checks  for number of days current date and
-func (l List) LastCheckDays(now time.Time, h Habit) (int, error) {
-	for _, v := range l {
+func (s Store) LastCheckDays(now time.Time, h Habit) (int, error) {
+	for _, v := range s.Habits {
 		if v.Name == h.Name {
 			//days := int(v.LastCheck.Sub(now).Hours() / 24)
 			days := int(now.Sub(v.LastCheck).Hours() / 24)
@@ -75,61 +89,57 @@ func (l List) LastCheckDays(now time.Time, h Habit) (int, error) {
 }
 
 //Find method returns true and habit if it finds it
-func (l List) Find(name string) (int, bool) {
-	for i, habit := range l {
+func (s *Store) Find(name string) (*Habit, bool) {
+	for i, habit := range s.Habits {
 		if habit.Name == name {
-			return i, true
+			return &s.Habits[i], true
 		}
 	}
-	return -1, false
+	return nil, false
 }
-func (l *List) Break(now time.Time, i int) {
-	ls := *l
-	ls[i].LastCheck = now //Proper pointer dereference ?
-	ls[i].Streak = 1
+func (h *Habit) Break(now time.Time) {
+	h.LastCheck = now
+	h.Streak = 1
 }
 
 //UpdateYesterday method is updating the habit if last check was yesterday.
-func (l *List) UpdateYesterday(now time.Time, i int) {
-	ls := *l
-	ls[i].LastCheck = now //Proper pointer dereference ?
-	ls[i].Streak++
+func (h *Habit) UpdateYesterday(now time.Time) {
+	h.LastCheck = now //Proper pointer dereference ?
+	h.Streak++
 }
 
 //DecisionsHandler makes decisions based on the number of days between today's date
 //and date habit was last checked
-func (l *List) DecisionsHandler(w io.Writer, i int, now time.Time) {
-	ls := *l
-	days, _ := l.LastCheckDays(now, ls[i])
+func (h *Habit) DecisionsHandler(w io.Writer, days int, now time.Time) {
 	switch {
-	case days >= 0 && ls[i].Done:
-		fmt.Fprintf(w, "You already finished the %v habit.\n", ls[i].Name)
+	case days >= 0 && h.Done:
+		fmt.Fprintf(w, "You already finished the %v habit.\n", h.Name)
 	case days == 0:
-		fmt.Fprintf(w, "Nice work: you've done the habit '%s' for %v days in a row Now.\n", ls[i].Name, ls[i].Streak)
-	case days == 1 && ls[i].Streak == 29:
-		l.UpdateYesterday(now, i)
-		ls[i].Done = true
-		fmt.Fprintf(w, "Congratulations, this is your %dth day for '%s' habit. You finished successfully!!\n", ls[i].Streak, ls[i].Name)
-	case days == 1 && ls[i].Streak > 15:
-		l.UpdateYesterday(now, i)
-		fmt.Fprintf(w, "You're currently on a %d-day streak for '%s'. Stick to it!\n", ls[i].Streak, ls[i].Name)
+		fmt.Fprintf(w, "Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak)
+	case days == 1 && h.Streak == 29:
+		h.UpdateYesterday(now)
+		h.Done = true
+		fmt.Fprintf(w, "Congratulations, this is your %dth day for '%s' habit. You finished successfully!!\n", h.Streak, h.Name)
+	case days == 1 && h.Streak > 15:
+		h.UpdateYesterday(now)
+		fmt.Fprintf(w, "You're currently on a %d-day streak for '%s'. Stick to it!\n", h.Streak, h.Name)
 	case days == 1:
-		l.UpdateYesterday(now, i)
-		fmt.Fprintf(w, "Nice work: you've done the habit '%s' for %v days in a row Now.\n", ls[i].Name, ls[i].Streak)
+		h.UpdateYesterday(now)
+		fmt.Fprintf(w, "Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak)
 	case days >= 3:
-		l.Break(now, i)
-		fmt.Fprintf(w, "You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n", ls[i].Name, days)
+		h.Break(now)
+		fmt.Fprintf(w, "You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n", h.Name, days)
 	}
 }
 
 // Get method opens the provided file name, decodes
-// the JSON data and parses it into a List
-func (l *List) Get(filename string) error {
+// the JSON data and parses it into a Store
+func (s *Store) Get(filename string) error {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			fmt.Printf("reading file failed: %v\n", err)
 		}
 	}
-	return json.Unmarshal(file, l)
+	return json.Unmarshal(file, &s.Habits)
 }

@@ -14,11 +14,11 @@ func RunCli() {
 	// Output is Default terminal
 	var w io.Writer = os.Stdout
 	// Define an items list
-	l := &List{}
+	s := Store{}
 	//Parse the habit
 	habitName := strings.Join(os.Args[1:], " ")
 	// Use the Get method to read habits from file
-	if err := l.Get(habitsFileName); err != nil {
+	if err := s.Get(habitsFileName); err != nil {
 		_, err := fmt.Fprintln(os.Stderr, err)
 		if err != nil {
 			fmt.Printf("failed to read %s: %s\n", habitsFileName, err)
@@ -27,7 +27,8 @@ func RunCli() {
 	}
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
-		for _, item := range *l {
+		fmt.Println(s)
+		for _, item := range s.Habits {
 			if item.Done {
 				continue
 			}
@@ -36,18 +37,16 @@ func RunCli() {
 		return
 	}
 	//Making a decision
-	i, found := l.Find(habitName)
+	habit, found := s.Find(habitName)
 	if !found {
-		err := l.Add(w, habitName)
-		if err != nil {
-			fmt.Println("failed to add the habit with error:", err)
-		}
+		s.Add(habitName)
 	}
 	if found {
-		l.DecisionsHandler(w, i, Now())
+		days, _ := s.LastCheckDays(Now(), *habit)
+		habit.DecisionsHandler(w, days, Now())
 	}
 	// Save the new habit to the file
-	if err := l.Save(habitsFileName); err != nil {
+	if err := s.Save(habitsFileName); err != nil {
 		_, err := fmt.Fprintln(os.Stderr, err)
 		if err != nil {
 			fmt.Printf("failed to save to file %s with following error: %s\n", habitsFileName, err)

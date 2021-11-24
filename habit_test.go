@@ -2,6 +2,7 @@ package habits_test
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -21,49 +22,53 @@ var Now = func() time.Time {
 //TestAdd tests adding a habit to a slice of habits
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	w := new(bytes.Buffer)
-	l := habits.List{}
-	habitName := "piano"
-	//os.Stdout = nil
-	err := l.Add(w, habitName)
-	if err != nil {
-		t.Errorf("adding habit failed with error: %v", err)
+	store := habits.Store{
+		Output: io.Discard,
 	}
-	if l[0].Name != habitName {
-		t.Errorf("expected %q, got %q instead.", habitName, l[0].Name)
+	want := "piano"
+	store.Add(want)
+	got := store.Habits[0].Name
+	if got != want {
+		t.Errorf("expected %q, got %q instead.", want, got)
 	}
 
 }
 
-// TestDelete tests the Delete method of the List type
+// TestDelete tests the Delete method of the Store type
 func TestDelete(t *testing.T) {
 	t.Parallel()
-	l := habits.List{
-		{Name: "piano", Streak: 4},
-		{Name: "code", Streak: 4},
-	}
-	want := habits.List{
-		{Name: "code", Streak: 4},
-	}
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "piano", Streak: 4},
+			{Name: "code", Streak: 4},
+		},
 
-	err := l.Delete(0)
+		Output: io.Discard,
+	}
+	want := []habits.Habit{
+		{Name: "code", Streak: 4},
+	}
+	err := store.Delete(0)
 	if err != nil {
 		t.Fatalf("failed to delete habit from the list: %v", err)
 	}
-	if !cmp.Equal(want, l) {
-		t.Error(cmp.Diff(want, l))
+	if !cmp.Equal(want, store.Habits) {
+		t.Error(cmp.Diff(want, store.Habits))
 	}
 }
 
 //TestDeleteInvalid tests a scenario where the slice don't have the habit'
 func TestDeleteInvalid(t *testing.T) {
 	t.Parallel()
-	l := habits.List{
-		{Name: "piano"},
-		{Name: "100daysOfGo"},
-		{Name: "devops"},
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "piano"},
+			{Name: "100daysOfGo"},
+			{Name: "devops"},
+		},
+		Output: io.Discard,
 	}
-	err := l.Delete(4)
+	err := store.Delete(4)
 	if err == nil {
 		t.Errorf("expected error for nonexistent habit got nil")
 	}
@@ -71,11 +76,14 @@ func TestDeleteInvalid(t *testing.T) {
 
 //TestSaveGet tests saving and retrieving data from file
 func TestSaveGet(t *testing.T) {
-	l1 := habits.List{
-		{Name: "piano", Streak: 4},
-		{Name: "code", Streak: 4},
+	want := []habits.Habit{
+		{Name: "piano"},
+		{Name: "100daysOfGo"},
+		{Name: "devops"},
 	}
-	l2 := habits.List{}
+	store := habits.Store{
+		Habits: want,
+	}
 
 	tf, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -88,19 +96,20 @@ func TestSaveGet(t *testing.T) {
 		}
 	}(tf.Name())
 
-	if err := l1.Save(tf.Name()); err != nil {
+	if err := store.Save(tf.Name()); err != nil {
 		t.Fatalf("Error saving list to file: %s", err)
 	}
-	if err := l2.Get(tf.Name()); err != nil {
+	store2 := habits.Store{}
+	if err := store2.Get(tf.Name()); err != nil {
 		t.Fatalf("Error getting list from file: %s", err)
 	}
-	if !cmp.Equal(l1, l2) {
-		t.Error(cmp.Diff(l1, l2))
+	if !cmp.Equal(store.Habits, store2.Habits) {
+		t.Error(cmp.Diff(store.Habits, store2.Habits))
 	}
 }
 func TestGetFailure(t *testing.T) {
-	l := habits.List{}
-	if err := l.Get("fail.txt"); err == nil {
+	store := habits.Store{}
+	if err := store.Get("fail.txt"); err == nil {
 		t.Fatal("reading nonexistent file should give an error, got nil")
 	}
 }
@@ -109,13 +118,16 @@ func TestGetFailure(t *testing.T) {
 func TestLastCheckDays(t *testing.T) {
 	t.Parallel()
 	mokLastCheck := time.Date(2021, 12, 13, 17, 8, 0, 0, time.UTC)
-	l := habits.List{
-		{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+		},
+		Output: io.Discard,
 	}
 	habitName := "piano"
 	want := 2
-	i, _ := l.Find(habitName)
-	got, err := l.LastCheckDays(Now(), l[i])
+	habit, _ := store.Find(habitName)
+	got, err := store.LastCheckDays(Now(), *habit)
 	if err != nil {
 		t.Fatalf("got an error while checking days: %v", err)
 	}
@@ -126,12 +138,15 @@ func TestLastCheckDays(t *testing.T) {
 func TestLastCheckDaysInvalid(t *testing.T) {
 	t.Parallel()
 	mokLastCheck := time.Date(2021, 12, 17, 17, 8, 0, 0, time.UTC)
-	l := habits.List{
-		{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+		},
+		Output: io.Discard,
 	}
 	habitName := "piano"
-	i, _ := l.Find(habitName)
-	_, err := l.LastCheckDays(Now(), l[i])
+	habit, _ := store.Find(habitName)
+	_, err := store.LastCheckDays(Now(), *habit)
 	if err == nil {
 		t.Fatal(" expected error got nil")
 	}
@@ -140,22 +155,28 @@ func TestLastCheckDaysInvalid(t *testing.T) {
 //TestFind tests the Find method
 func TestFind(t *testing.T) {
 	t.Parallel()
-	l := habits.List{
-		{Name: "k8s", LastCheck: Now(), Streak: 4},
-		{Name: "piano", LastCheck: Now(), Streak: 4},
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "k8s", LastCheck: Now(), Streak: 4},
+			{Name: "piano", LastCheck: Now(), Streak: 4},
+		},
+		Output: io.Discard,
 	}
-	_, found := l.Find("piano")
+	_, found := store.Find("piano")
 	if !found {
 		t.Error("find should had found a piano but failed with error")
 	}
 }
 func TestFindInvalidElement(t *testing.T) {
-	l := habits.List{
-		{Name: "k8s", LastCheck: Now(), Streak: 4},
-		{Name: "piano", LastCheck: Now(), Streak: 4},
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "k8s", LastCheck: Now(), Streak: 4},
+			{Name: "piano", LastCheck: Now(), Streak: 4},
+		},
+		Output: io.Discard,
 	}
-	i, _ := l.Find("go")
-	if i != -1 {
+	_, b := store.Find("go")
+	if b {
 		t.Error("expected an error as (-1) got nothing")
 	}
 }
@@ -164,34 +185,44 @@ func TestFindInvalidElement(t *testing.T) {
 func TestBreak(t *testing.T) {
 	t.Parallel()
 	mokLastCheck := time.Date(2021, 12, 17, 17, 8, 0, 0, time.UTC)
-	l := habits.List{
-		{Name: "piano", LastCheck: mokLastCheck, Streak: 4},
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "piano", LastCheck: mokLastCheck, Streak: 4},
+		},
+		Output: io.Discard,
 	}
-	want := habits.List{
-		{Name: "piano", LastCheck: Now(), Streak: 1},
+	want := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "piano", LastCheck: Now(), Streak: 1},
+		},
+		Output: io.Discard,
 	}
-	i, _ := l.Find("piano")
-	l.Break(Now(), i)
-	if !cmp.Equal(want, l) {
-		t.Error(cmp.Diff(want, l))
+	habit, _ := store.Find("piano")
+	habit.Break(Now())
+	if !cmp.Equal(want, store) {
+		t.Error(cmp.Diff(want, store))
 	}
-	if !cmp.Equal(want, l) {
-		t.Error(cmp.Diff(want, l))
-	}
+
 }
 func TestUpdateYesterday(t *testing.T) {
 	t.Parallel()
 	mokLastCheck := time.Date(2021, 12, 14, 17, 8, 0, 0, time.UTC)
-	l := habits.List{
-		{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+		},
+		Output: io.Discard,
 	}
-	want := habits.List{
-		{Name: "piano", LastCheck: Now(), Streak: 2},
+	want := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "piano", LastCheck: Now(), Streak: 2},
+		},
+		Output: io.Discard,
 	}
-	i, _ := l.Find("piano")
-	l.UpdateYesterday(Now(), i)
-	if !cmp.Equal(want, l) {
-		t.Error(cmp.Diff(want, l))
+	habit, _ := store.Find("piano")
+	habit.UpdateYesterday(Now())
+	if !cmp.Equal(want, store) {
+		t.Error(cmp.Diff(want, store))
 	}
 }
 
@@ -202,33 +233,40 @@ func TestDecisionsHandler(t *testing.T) {
 	sameDay := time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 	threeDays := time.Date(2021, 12, 11, 18, 9, 0, 0, time.UTC)
 	dayBefore := time.Date(2021, 12, 14, 15, 9, 0, 0, time.UTC)
-	l := habits.List{
-		{Name: "k8s", LastCheck: sameDay, Streak: 4},
-		{Name: "piano", LastCheck: threeDays, Streak: 4},
-		{Name: "code", LastCheck: threeDays, Streak: 4},
-		{Name: "Go", LastCheck: dayBefore, Streak: 4},
-		{Name: "docker", LastCheck: dayBefore, Streak: 16},
-		{Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false},
-		{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
+	store := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "k8s", LastCheck: sameDay, Streak: 4},
+			{Name: "piano", LastCheck: threeDays, Streak: 4},
+			{Name: "code", LastCheck: threeDays, Streak: 4},
+			{Name: "Go", LastCheck: dayBefore, Streak: 4},
+			{Name: "docker", LastCheck: dayBefore, Streak: 16},
+			{Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false},
+			{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
+		},
+		Output: io.Discard,
 	}
-	want := habits.List{
-		{Name: "k8s", LastCheck: Now(), Streak: 4},
-		{Name: "piano", LastCheck: Now(), Streak: 1},
-		{Name: "code", LastCheck: Now(), Streak: 1},
-		{Name: "Go", LastCheck: Now(), Streak: 5},
-		{Name: "docker", LastCheck: Now(), Streak: 17},
-		{Name: "SQL", LastCheck: Now(), Streak: 30, Done: true},
-		{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
+	want := habits.Store{
+		Habits: []habits.Habit{
+			{Name: "k8s", LastCheck: Now(), Streak: 4},
+			{Name: "piano", LastCheck: Now(), Streak: 1},
+			{Name: "code", LastCheck: Now(), Streak: 1},
+			{Name: "Go", LastCheck: Now(), Streak: 5},
+			{Name: "docker", LastCheck: Now(), Streak: 17},
+			{Name: "SQL", LastCheck: Now(), Streak: 30, Done: true},
+			{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
+		},
+		Output: io.Discard,
 	}
 	habitNames := []string{"k8s", "piano", "code", "Go", "docker", "SQL", "NoSQL"}
 	//os.Stdout = nil
-	for _, name := range habitNames {
-		i, _ := l.Find(name)
-		l.DecisionsHandler(w, i, Now())
+	for _, habitName := range habitNames {
+		habit, _ := store.Find(habitName)
+		days, _ := store.LastCheckDays(Now(), *habit)
+		habit.DecisionsHandler(w, days, Now())
 	}
 
-	if !cmp.Equal(want, l) {
-		t.Error(cmp.Diff(want, l))
+	if !cmp.Equal(want, store) {
+		t.Error(cmp.Diff(want, store))
 	}
 
 }
