@@ -104,7 +104,7 @@ func (h *Habit) Break(now time.Time) {
 
 //UpdateYesterday method is updating the habit if last check was yesterday.
 func (h *Habit) UpdateYesterday(now time.Time) {
-	h.LastCheck = now //Proper pointer dereference ?
+	h.LastCheck = now
 	h.Streak++
 }
 
