@@ -2,7 +2,6 @@ package habits
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"strings"
 )
@@ -11,9 +10,7 @@ import (
 const habitsFileName = ".habits.json"
 
 func RunCli() {
-	// Output is Default terminal
-	var w io.Writer = os.Stdout
-	// Define an items list
+
 	s := Store{}
 	//Parse the habit
 	habitName := strings.Join(os.Args[1:], " ")
@@ -23,7 +20,7 @@ func RunCli() {
 		if err != nil {
 			fmt.Printf("failed to read %s: %s\n", habitsFileName, err)
 		}
-		os.Exit(1) // Can it stay here ? Recommended in the main.go
+		os.Exit(1)
 	}
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
@@ -42,8 +39,8 @@ func RunCli() {
 		s.Add(habitName)
 	}
 	if found {
-		days, _ := s.LastCheckDays(Now(), *habit)
-		habit.DecisionsHandler(w, days, Now())
+		days, _ := s.LastCheckDays(*habit)
+		habit.DecisionsHandler(days)
 	}
 	// Save the new habit to the file
 	if err := s.Save(habitsFileName); err != nil {

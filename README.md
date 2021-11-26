@@ -23,9 +23,9 @@ If you want to start tracking a new habit, change the name: **` habit meditating
 * Calculate time intervals so that you know whether to extend the current streak or start a new one
 
 ## Future features:
-*Read and Write to multiple data sources
-*Access from the Web Interface
-*Data loss prevention
+* Read and Write to and from multiple data sources
+* Access from the Web Interface
+* Data loss prevention
 
 Thanks to @bitfield for his relaxed and unique way of mentoring!
 

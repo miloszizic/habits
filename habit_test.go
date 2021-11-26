@@ -1,7 +1,6 @@
 package habits_test
 
 import (
-	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
@@ -108,7 +107,9 @@ func TestSaveGet(t *testing.T) {
 	}
 }
 func TestGetFailure(t *testing.T) {
-	store := habits.Store{}
+	store := habits.Store{
+		Output: io.Discard,
+	}
 	if err := store.Get("fail.txt"); err == nil {
 		t.Fatal("reading nonexistent file should give an error, got nil")
 	}
@@ -120,14 +121,15 @@ func TestLastCheckDays(t *testing.T) {
 	mokLastCheck := time.Date(2021, 12, 13, 17, 8, 0, 0, time.UTC)
 	store := habits.Store{
 		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+			{Name: "piano", LastCheck: mokLastCheck, Streak: 1, SystemTime: Now()},
 		},
-		Output: io.Discard,
+		Output:     io.Discard,
+		SystemTime: Now(),
 	}
 	habitName := "piano"
 	want := 2
 	habit, _ := store.Find(habitName)
-	got, err := store.LastCheckDays(Now(), *habit)
+	got, err := store.LastCheckDays(*habit)
 	if err != nil {
 		t.Fatalf("got an error while checking days: %v", err)
 	}
@@ -140,13 +142,13 @@ func TestLastCheckDaysInvalid(t *testing.T) {
 	mokLastCheck := time.Date(2021, 12, 17, 17, 8, 0, 0, time.UTC)
 	store := habits.Store{
 		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+			{Name: "piano", LastCheck: mokLastCheck, Streak: 1, SystemTime: Now()},
 		},
 		Output: io.Discard,
 	}
 	habitName := "piano"
 	habit, _ := store.Find(habitName)
-	_, err := store.LastCheckDays(Now(), *habit)
+	_, err := store.LastCheckDays(*habit)
 	if err == nil {
 		t.Fatal(" expected error got nil")
 	}
@@ -187,18 +189,20 @@ func TestBreak(t *testing.T) {
 	mokLastCheck := time.Date(2021, 12, 17, 17, 8, 0, 0, time.UTC)
 	store := habits.Store{
 		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: mokLastCheck, Streak: 4},
+			{Name: "piano", LastCheck: mokLastCheck, Streak: 4, SystemTime: Now()},
 		},
-		Output: io.Discard,
+		Output:     io.Discard,
+		SystemTime: Now(),
 	}
 	want := habits.Store{
 		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: Now(), Streak: 1},
+			{Name: "piano", LastCheck: Now(), Streak: 1, SystemTime: Now()},
 		},
-		Output: io.Discard,
+		Output:     io.Discard,
+		SystemTime: Now(),
 	}
 	habit, _ := store.Find("piano")
-	habit.Break(Now())
+	habit.Break()
 	if !cmp.Equal(want, store) {
 		t.Error(cmp.Diff(want, store))
 	}
@@ -209,18 +213,18 @@ func TestUpdateYesterday(t *testing.T) {
 	mokLastCheck := time.Date(2021, 12, 14, 17, 8, 0, 0, time.UTC)
 	store := habits.Store{
 		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
+			{Name: "piano", LastCheck: mokLastCheck, Streak: 1, SystemTime: Now()},
 		},
 		Output: io.Discard,
 	}
 	want := habits.Store{
 		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: Now(), Streak: 2},
+			{Name: "piano", LastCheck: Now(), Streak: 2, SystemTime: Now()},
 		},
 		Output: io.Discard,
 	}
 	habit, _ := store.Find("piano")
-	habit.UpdateYesterday(Now())
+	habit.UpdateYesterday()
 	if !cmp.Equal(want, store) {
 		t.Error(cmp.Diff(want, store))
 	}
@@ -229,44 +233,46 @@ func TestUpdateYesterday(t *testing.T) {
 func TestDecisionsHandler(t *testing.T) {
 	//time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 	t.Parallel()
-	w := new(bytes.Buffer)
+
 	sameDay := time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 	threeDays := time.Date(2021, 12, 11, 18, 9, 0, 0, time.UTC)
 	dayBefore := time.Date(2021, 12, 14, 15, 9, 0, 0, time.UTC)
+
 	store := habits.Store{
 		Habits: []habits.Habit{
-			{Name: "k8s", LastCheck: sameDay, Streak: 4},
-			{Name: "piano", LastCheck: threeDays, Streak: 4},
-			{Name: "code", LastCheck: threeDays, Streak: 4},
-			{Name: "Go", LastCheck: dayBefore, Streak: 4},
-			{Name: "docker", LastCheck: dayBefore, Streak: 16},
-			{Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false},
-			{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
+			{Name: "k8s", LastCheck: sameDay, Streak: 4, Output: io.Discard, SystemTime: Now()},
+			{Name: "piano", LastCheck: threeDays, Streak: 4, Output: io.Discard, SystemTime: Now()},
+			{Name: "code", LastCheck: threeDays, Streak: 4, Output: io.Discard, SystemTime: Now()},
+			{Name: "Go", LastCheck: dayBefore, Streak: 4, Output: io.Discard, SystemTime: Now()},
+			{Name: "docker", LastCheck: dayBefore, Streak: 16, Output: io.Discard, SystemTime: Now()},
+			{Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false, Output: io.Discard, SystemTime: Now()},
+			{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true, Output: io.Discard, SystemTime: Now()},
 		},
-		Output: io.Discard,
+		Output:     io.Discard,
+		SystemTime: Now(),
 	}
 	want := habits.Store{
 		Habits: []habits.Habit{
-			{Name: "k8s", LastCheck: Now(), Streak: 4},
-			{Name: "piano", LastCheck: Now(), Streak: 1},
-			{Name: "code", LastCheck: Now(), Streak: 1},
-			{Name: "Go", LastCheck: Now(), Streak: 5},
-			{Name: "docker", LastCheck: Now(), Streak: 17},
-			{Name: "SQL", LastCheck: Now(), Streak: 30, Done: true},
-			{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
+			{Name: "k8s", LastCheck: Now(), Streak: 4, Output: io.Discard, SystemTime: Now()},
+			{Name: "piano", LastCheck: Now(), Streak: 1, Output: io.Discard, SystemTime: Now()},
+			{Name: "code", LastCheck: Now(), Streak: 1, Output: io.Discard, SystemTime: Now()},
+			{Name: "Go", LastCheck: Now(), Streak: 5, Output: io.Discard, SystemTime: Now()},
+			{Name: "docker", LastCheck: Now(), Streak: 17, Output: io.Discard, SystemTime: Now()},
+			{Name: "SQL", LastCheck: Now(), Streak: 30, Done: true, Output: io.Discard, SystemTime: Now()},
+			{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true, Output: io.Discard, SystemTime: Now()},
 		},
-		Output: io.Discard,
+		Output:     io.Discard,
+		SystemTime: Now(),
 	}
 	habitNames := []string{"k8s", "piano", "code", "Go", "docker", "SQL", "NoSQL"}
-	//os.Stdout = nil
+
 	for _, habitName := range habitNames {
 		habit, _ := store.Find(habitName)
-		days, _ := store.LastCheckDays(Now(), *habit)
-		habit.DecisionsHandler(w, days, Now())
+		days, _ := store.LastCheckDays(*habit)
+		habit.DecisionsHandler(days)
 	}
 
 	if !cmp.Equal(want, store) {
 		t.Error(cmp.Diff(want, store))
 	}
-
 }
