@@ -15,19 +15,17 @@ var Now = time.Now
 
 //Habit struct has all habit attributes
 type Habit struct {
-	Name       string
-	LastCheck  time.Time
-	Streak     int
-	Done       bool
-	Output     io.Writer
-	SystemTime time.Time
+	Name      string
+	LastCheck time.Time
+	Streak    int
+	Done      bool
+	Output    io.Writer
 }
 
 //Store is a struct of all Store properties
 type Store struct {
-	Habits     []Habit
-	Output     io.Writer
-	SystemTime time.Time
+	Habits []Habit
+	Output io.Writer
 }
 
 //Print as Store method is wrapping Fprintf so that is not needed to specify
@@ -35,8 +33,7 @@ type Store struct {
 func (s Store) Print(massage string, params ...interface{}) {
 	if s.Output == nil {
 		fmt.Fprintf(os.Stdout, massage, params...)
-	}
-	if s.Output != nil {
+	} else {
 		fmt.Fprintf(s.Output, massage, params...)
 	}
 }
@@ -46,29 +43,9 @@ func (s Store) Print(massage string, params ...interface{}) {
 func (h Habit) Print(massage string, params ...interface{}) {
 	if h.Output == nil {
 		fmt.Fprintf(os.Stdout, massage, params...)
-	}
-	if h.Output != nil {
+	} else {
 		fmt.Fprintf(h.Output, massage, params...)
 	}
-
-}
-
-// StoreTime is making a dissection about system time of a store
-func (s *Store) StoreTime() time.Time {
-	if s.SystemTime.IsZero() {
-		s.SystemTime = time.Now()
-		return s.SystemTime
-	}
-	return s.SystemTime
-}
-
-// HabitTime is making a dissection about system time of a habit
-func (h *Habit) HabitTime() time.Time {
-	if h.SystemTime.IsZero() {
-		h.SystemTime = time.Now()
-		return h.SystemTime
-	}
-	return h.SystemTime
 }
 
 //Add method is adding a new habit to the list of Habits
@@ -101,12 +78,23 @@ func (s *Store) Save(filename string) error {
 	return ioutil.WriteFile(filename, js, 0644)
 }
 
+// Get method opens the provided file name, decodes
+// the JSON data and parses it into a Store
+func (s *Store) Load(filename string) error {
+	file, err := ioutil.ReadFile(filename)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			s.Print("reading file failed: %v\n", err)
+		}
+	}
+	return json.Unmarshal(file, &s.Habits)
+}
+
 //LastCheckDays method checks  for number of days current date and
-func (s Store) LastCheckDays(h Habit) (int, error) {
-	now := s.StoreTime()
+func (s Store) LastCheckDays(time time.Time, h Habit) (int, error) {
 	for _, v := range s.Habits {
 		if v.Name == h.Name {
-			days := int(now.Sub(v.LastCheck).Hours() / 24)
+			days := int(time.Sub(v.LastCheck).Hours() / 24)
 			if days >= 0 {
 				return days, nil
 			}
@@ -126,49 +114,37 @@ func (s *Store) Find(name string) (*Habit, bool) {
 }
 
 //Break will restart a streak based on the LastCheck time
-func (h *Habit) Break() {
-	h.LastCheck = h.HabitTime()
+func (h *Habit) Break(time time.Time) {
+	h.LastCheck = time
 	h.Streak = 1
 }
 
 //UpdateYesterday method is updating the habit if last check was yesterday.
-func (h *Habit) UpdateYesterday() {
-	h.LastCheck = h.HabitTime()
+func (h *Habit) UpdateYesterday(time time.Time) {
+	h.LastCheck = time
 	h.Streak++
 }
 
 //DecisionsHandler makes decisions based on the number of days between today's date
 //and date habit was last checked
-func (h *Habit) DecisionsHandler(days int) {
+func (h *Habit) DecisionsHandler(time time.Time, days int) {
 	switch {
 	case days >= 0 && h.Done:
 		h.Print("You already finished the %v habit.\n", h.Name)
 	case days == 0:
 		h.Print("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak)
 	case days == 1 && h.Streak == 29:
-		h.UpdateYesterday()
+		h.UpdateYesterday(time)
 		h.Done = true
 		h.Print("Congratulations, this is your %dth day for '%s' habit. You finished successfully!!\n", h.Streak, h.Name)
 	case days == 1 && h.Streak > 15:
-		h.UpdateYesterday()
+		h.UpdateYesterday(time)
 		h.Print("You're currently on a %d-day streak for '%s'. Stick to it!\n", h.Streak, h.Name)
 	case days == 1:
-		h.UpdateYesterday()
+		h.UpdateYesterday(time)
 		h.Print("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak)
 	case days >= 3:
-		h.Break()
+		h.Break(time)
 		h.Print("You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n", h.Name, days)
 	}
-}
-
-// Get method opens the provided file name, decodes
-// the JSON data and parses it into a Store
-func (s *Store) Get(filename string) error {
-	file, err := ioutil.ReadFile(filename)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			s.Print("reading file failed: %v\n", err)
-		}
-	}
-	return json.Unmarshal(file, &s.Habits)
 }

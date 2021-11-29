@@ -14,8 +14,8 @@ func RunCli() {
 	s := Store{}
 	//Parse the habit
 	habitName := strings.Join(os.Args[1:], " ")
-	// Use the Get method to read habits from file
-	if err := s.Get(habitsFileName); err != nil {
+	//Use the Get method to read habits from file
+	if err := s.Load(habitsFileName); err != nil {
 		_, err := fmt.Fprintln(os.Stderr, err)
 		if err != nil {
 			fmt.Printf("failed to read %s: %s\n", habitsFileName, err)
@@ -24,7 +24,6 @@ func RunCli() {
 	}
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
-		fmt.Println(s)
 		for _, item := range s.Habits {
 			if item.Done {
 				continue
@@ -39,8 +38,8 @@ func RunCli() {
 		s.Add(habitName)
 	}
 	if found {
-		days, _ := s.LastCheckDays(*habit)
-		habit.DecisionsHandler(days)
+		days, _ := s.LastCheckDays(Now(), *habit)
+		habit.DecisionsHandler(Now(), days)
 	}
 	// Save the new habit to the file
 	if err := s.Save(habitsFileName); err != nil {
