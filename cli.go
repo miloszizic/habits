@@ -1,6 +1,7 @@
 package habits
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -12,6 +13,14 @@ const habitsFileName = ".habits.json"
 func RunCli() {
 
 	s := Store{}
+	//Checking if the source file exists
+	_, err := os.OpenFile(habitsFileName, os.O_RDWR, 0755)
+	if errors.Is(err, os.ErrNotExist) {
+		err := s.Save(habitsFileName)
+		if err != nil {
+			fmt.Printf("unable to save a file: %v\n", err)
+		}
+	}
 	//Parse the habit
 	habitName := strings.Join(os.Args[1:], " ")
 	//Use the Get method to read habits from file

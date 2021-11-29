@@ -99,7 +99,7 @@ func TestSaveGet(t *testing.T) {
 		t.Fatalf("Error saving list to file: %s", err)
 	}
 	store2 := habits.Store{}
-	if err := store2.Get(tf.Name()); err != nil {
+	if err := store2.Load(tf.Name()); err != nil {
 		t.Fatalf("Error getting list from file: %s", err)
 	}
 	if !cmp.Equal(store.Habits, store2.Habits) {
@@ -110,7 +110,7 @@ func TestGetFailure(t *testing.T) {
 	store := habits.Store{
 		Output: io.Discard,
 	}
-	if err := store.Get("fail.txt"); err == nil {
+	if err := store.Load("fail.txt"); err == nil {
 		t.Fatal("reading nonexistent file should give an error, got nil")
 	}
 }

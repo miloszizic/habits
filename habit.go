@@ -78,13 +78,13 @@ func (s *Store) Save(filename string) error {
 	return ioutil.WriteFile(filename, js, 0644)
 }
 
-// Get method opens the provided file name, decodes
+//Load method opens the provided file name, decodes
 // the JSON data and parses it into a Store
 func (s *Store) Load(filename string) error {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			s.Print("reading file failed: %v\n", err)
+			fmt.Println(err)
 		}
 	}
 	return json.Unmarshal(file, &s.Habits)
