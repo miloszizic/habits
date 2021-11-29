@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -75,13 +74,13 @@ func (s *Store) Save(filename string) error {
 	if err != nil {
 		fmt.Printf(" marshaling to JSON failed : %v \n", err)
 	}
-	return ioutil.WriteFile(filename, js, 0644)
+	return os.WriteFile(filename, js, 0644)
 }
 
 //Load method opens the provided file name, decodes
-// the JSON data and parses it into a Store
+//the JSON data and parses it into a Store
 func (s *Store) Load(filename string) error {
-	file, err := ioutil.ReadFile(filename)
+	file, err := os.ReadFile(filename)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			fmt.Println(err)

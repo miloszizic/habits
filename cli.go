@@ -23,7 +23,7 @@ func RunCli() {
 	}
 	//Parse the habit
 	habitName := strings.Join(os.Args[1:], " ")
-	//Use the Get method to read habits from file
+	//Use the Load method to read habits from file
 	if err := s.Load(habitsFileName); err != nil {
 		_, err := fmt.Fprintln(os.Stderr, err)
 		if err != nil {
@@ -56,6 +56,6 @@ func RunCli() {
 		if err != nil {
 			fmt.Printf("failed to save to file %s with following error: %s\n", habitsFileName, err)
 		}
-		os.Exit(1) // Can it stay here ? Recommended in the main.go
+		os.Exit(1)
 	}
 }
