@@ -14,7 +14,7 @@ func RunCli() {
 
 	s := Store{}
 	//Checking if the source file exists
-	_, err := os.OpenFile(habitsFileName, os.O_RDWR, 0755)
+	_, err := os.OpenFile(habitsFileName, os.O_RDWR, 0600)
 	if errors.Is(err, os.ErrNotExist) {
 		err := s.Save(habitsFileName)
 		if err != nil {
