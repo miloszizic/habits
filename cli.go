@@ -8,7 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const dbFIle = "./data.db"
+const DBFile = "./data.db"
 
 func RunCli() {
 
