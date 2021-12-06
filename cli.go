@@ -17,7 +17,7 @@ func RunCli() {
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
 		habits := store.GetAll()
-		for _, habit := range habits {
+		for _, habit := range store.AllHabits() {
 			if habit.Done {
 				continue
 			}
