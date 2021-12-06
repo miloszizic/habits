@@ -29,7 +29,6 @@ func RunCli() {
 	if !found {
 		store.Add(habitName)
 	}
-	if found {
 		days := habit.LastCheckDays(Now())
 		fmt.Println(days)
 		store.DecisionsHandler(&habit, days, Now())
