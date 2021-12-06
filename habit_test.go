@@ -3,11 +3,11 @@ package habits_test
 import (
 	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/miloszizic/habits"
 )
 
@@ -16,258 +16,201 @@ var Now = func() time.Time {
 	return time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 }
 
-// Output is Default terminal
+//vars for testing purposes
+var sameDay = time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
+var threeDays = time.Date(2021, 12, 11, 18, 9, 0, 0, time.UTC)
+var dayBefore = time.Date(2021, 12, 14, 15, 9, 0, 0, time.UTC)
 
-//TestAdd tests adding a habit to a slice of habits
+var seedData = []habits.Habit{
+	{Name: "k8s", LastCheck: sameDay, Streak: 4},
+	{Name: "piano", LastCheck: threeDays, Streak: 4},
+	{Name: "code", LastCheck: threeDays, Streak: 4},
+	{Name: "Go", LastCheck: dayBefore, Streak: 4},
+	{Name: "docker", LastCheck: dayBefore, Streak: 16},
+	{Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false},
+	{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
+}
+
+//tempFile makes a temp file for the database
+func tempFile() string {
+	file, _ := ioutil.TempFile("", "*.db")
+	//require.NoError(err)
+	file.Close()
+	return file.Name()
+}
+
+func TestLastCheckDays(t *testing.T) {
+	t.Parallel()
+	//Making temp db
+	dbFile := tempFile()
+	t.Logf("db file: %s", dbFile) //for checking the temp name
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	dbTest.Seed(seedData)
+	// Testing
+	want := 3
+	habit, _ := dbTest.GetOne("piano")
+	got := habit.LastCheckDays(Now())
+	if got != want {
+		t.Errorf("want %v, got %v", want, got)
+	}
+}
+
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	store := habits.Store{
-		Output: io.Discard,
-	}
+	//Making temp db
+	dbFile := tempFile()
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	// Testing
 	want := "piano"
-	store.Add(want)
-	got := store.Habits[0].Name
+	dbTest.Add(want)
+	dbHabit, _ := dbTest.GetOne("piano")
+	got := dbHabit.Name
 	if got != want {
 		t.Errorf("expected %q, got %q instead.", want, got)
 	}
 
 }
-
-// TestDelete tests the Delete method of the Store type
-func TestDelete(t *testing.T) {
+func TestGetOne(t *testing.T) {
 	t.Parallel()
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "piano", Streak: 4},
-			{Name: "code", Streak: 4},
-		},
-
-		Output: io.Discard,
+	//Making temp db
+	dbFile := tempFile()
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	dbTest.Seed(seedData)
+	// Testing
+	want := habits.Habit{ID: 4, Name: "Go", LastCheck: dayBefore, Streak: 4}
+	got, _ := dbTest.GetOne("Go")
+	if got != want {
+		t.Errorf("expected %v, got %v instead.", want, got)
 	}
+}
+
+//
+func TestGetOneInvalid(t *testing.T) {
+	t.Parallel()
+	//Making temp db
+	dbFile := tempFile()
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	dbTest.Seed(seedData)
+	// Testing
+	habit, found := dbTest.GetOne("Biking")
+	if found {
+		t.Errorf("expected nil value for habit got %v", habit)
+	}
+}
+
+func TestGetAllSeed(t *testing.T) {
+	t.Parallel()
+	//Making temp db
+	dbFile := tempFile()
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	dbTest.Seed(seedData)
+	// Testing
 	want := []habits.Habit{
-		{Name: "code", Streak: 4},
+		{ID: 1, Name: "k8s", LastCheck: sameDay, Streak: 4},
+		{ID: 2, Name: "piano", LastCheck: threeDays, Streak: 4},
+		{ID: 3, Name: "code", LastCheck: threeDays, Streak: 4},
+		{ID: 4, Name: "Go", LastCheck: dayBefore, Streak: 4},
+		{ID: 5, Name: "docker", LastCheck: dayBefore, Streak: 16},
+		{ID: 6, Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false},
+		{ID: 7, Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
 	}
-	err := store.Delete(0)
-	if err != nil {
-		t.Fatalf("failed to delete habit from the list: %v", err)
-	}
-	if !cmp.Equal(want, store.Habits) {
-		t.Error(cmp.Diff(want, store.Habits))
-	}
-}
-
-//TestDeleteInvalid tests a scenario where the slice don't have the habit'
-func TestDeleteInvalid(t *testing.T) {
-	t.Parallel()
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "piano"},
-			{Name: "100daysOfGo"},
-			{Name: "devops"},
-		},
-		Output: io.Discard,
-	}
-	err := store.Delete(4)
-	if err == nil {
-		t.Errorf("expected error for nonexistent habit got nil")
+	got := dbTest.GetAll()
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
-//TestSaveGet tests saving and retrieving data from file
-func TestSaveGet(t *testing.T) {
-	want := []habits.Habit{
-		{Name: "piano"},
-		{Name: "100daysOfGo"},
-		{Name: "devops"},
-	}
-	store := habits.Store{
-		Habits: want,
-	}
-
-	tf, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("Error creating temp file: %s", err)
-	}
-	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			t.Fatalf("removeing temp file failed with error: %s", err)
-		}
-	}(tf.Name())
-
-	if err := store.Save(tf.Name()); err != nil {
-		t.Fatalf("Error saving list to file: %s", err)
-	}
-	store2 := habits.Store{}
-	if err := store2.Load(tf.Name()); err != nil {
-		t.Fatalf("Error getting list from file: %s", err)
-	}
-	if !cmp.Equal(store.Habits, store2.Habits) {
-		t.Error(cmp.Diff(store.Habits, store2.Habits))
-	}
-}
-func TestGetFailure(t *testing.T) {
-	store := habits.Store{
-		Output: io.Discard,
-	}
-	if err := store.Load("fail.txt"); err == nil {
-		t.Fatal("reading nonexistent file should give an error, got nil")
-	}
-}
-
-//TestLastCheckDays tests the LastCheckDays method
-func TestLastCheckDays(t *testing.T) {
-	t.Parallel()
-	mokLastCheck := time.Date(2021, 12, 13, 17, 8, 0, 0, time.UTC)
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
-		},
-		Output: io.Discard,
-	}
-	habitName := "piano"
-	want := 2
-	habit, _ := store.Find(habitName)
-	got, err := store.LastCheckDays(Now(), *habit)
-	if err != nil {
-		t.Fatalf("got an error while checking days: %v", err)
-	}
-	if want != got {
-		t.Errorf("want %v, got %v", want, got)
-	}
-}
-func TestLastCheckDaysInvalid(t *testing.T) {
-	t.Parallel()
-	mokLastCheck := time.Date(2021, 12, 17, 17, 8, 0, 0, time.UTC)
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
-		},
-		Output: io.Discard,
-	}
-	habitName := "piano"
-	habit, _ := store.Find(habitName)
-	_, err := store.LastCheckDays(Now(), *habit)
-	if err == nil {
-		t.Fatal(" expected error got nil")
-	}
-}
-
-//TestFind tests the Find method
-func TestFind(t *testing.T) {
-	t.Parallel()
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "k8s", LastCheck: Now(), Streak: 4},
-			{Name: "piano", LastCheck: Now(), Streak: 4},
-		},
-		Output: io.Discard,
-	}
-	_, found := store.Find("piano")
-	if !found {
-		t.Error("find should had found a piano but failed with error")
-	}
-}
-func TestFindInvalidElement(t *testing.T) {
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "k8s", LastCheck: Now(), Streak: 4},
-			{Name: "piano", LastCheck: Now(), Streak: 4},
-		},
-		Output: io.Discard,
-	}
-	_, b := store.Find("go")
-	if b {
-		t.Error("expected an error as (-1) got nothing")
-	}
-}
-
-//TestBreak tests the habit brake
 func TestBreak(t *testing.T) {
 	t.Parallel()
-	mokLastCheck := time.Date(2021, 12, 17, 17, 8, 0, 0, time.UTC)
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: mokLastCheck, Streak: 4},
-		},
-		Output: io.Discard,
+	//Making temp db
+	dbFile := tempFile()
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	dbTest.Seed(seedData)
+	// Testing
+	want := habits.Habit{ID: 4, Name: "Go", LastCheck: Now(), Streak: 1}
+	habit, _ := dbTest.GetOne("Go")
+	dbTest.Break(habit, Now())
+	got, _ := dbTest.GetOne("Go")
+	if got != want {
+		t.Errorf("expected %v, got %v instead.", want, got)
 	}
-	want := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: Now(), Streak: 1},
-		},
-		Output: io.Discard,
-	}
-	habit, _ := store.Find("piano")
-	habit.Break(Now())
-	if !cmp.Equal(want, store) {
-		t.Error(cmp.Diff(want, store))
-	}
-
 }
 func TestUpdateYesterday(t *testing.T) {
 	t.Parallel()
-	mokLastCheck := time.Date(2021, 12, 14, 17, 8, 0, 0, time.UTC)
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: mokLastCheck, Streak: 1},
-		},
-		Output: io.Discard,
+	//Making temp db
+	dbFile := tempFile()
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	dbTest.Seed(seedData)
+	// Testing
+	want := habits.Habit{ID: 4, Name: "Go", LastCheck: Now(), Streak: 5}
+	habit, _ := dbTest.GetOne("Go")
+	dbTest.UpdateYesterday(habit, Now())
+	got, _ := dbTest.GetOne("Go")
+	if got != want {
+		t.Errorf("expected %v, got %v instead.", want, got)
 	}
-	want := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "piano", LastCheck: Now(), Streak: 2},
-		},
-		Output: io.Discard,
-	}
-	habit, _ := store.Find("piano")
-	habit.UpdateYesterday(Now())
-	if !cmp.Equal(want, store) {
-		t.Error(cmp.Diff(want, store))
+}
+
+func TestDone(t *testing.T) {
+	t.Parallel()
+	//Making temp db
+	dbFile := tempFile()
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	dbTest.Seed(seedData)
+	// Testing
+	want := habits.Habit{ID: 4, Name: "Go", LastCheck: Now(), Streak: 4, Done: true}
+	habit, _ := dbTest.GetOne("Go")
+	dbTest.Done(habit, Now())
+	got, _ := dbTest.GetOne("Go")
+	if got != want {
+		t.Errorf("expected %v, got %v instead.", want, got)
 	}
 }
 
 func TestDecisionsHandler(t *testing.T) {
-	//time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
 	t.Parallel()
-
-	sameDay := time.Date(2021, 12, 15, 17, 8, 0, 0, time.UTC)
-	threeDays := time.Date(2021, 12, 11, 18, 9, 0, 0, time.UTC)
-	dayBefore := time.Date(2021, 12, 14, 15, 9, 0, 0, time.UTC)
-
-	store := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "k8s", LastCheck: sameDay, Streak: 4, Output: io.Discard},
-			{Name: "piano", LastCheck: threeDays, Streak: 4, Output: io.Discard},
-			{Name: "code", LastCheck: threeDays, Streak: 4, Output: io.Discard},
-			{Name: "Go", LastCheck: dayBefore, Streak: 4, Output: io.Discard},
-			{Name: "docker", LastCheck: dayBefore, Streak: 16, Output: io.Discard},
-			{Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false, Output: io.Discard},
-			{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true, Output: io.Discard},
-		},
-		Output: io.Discard,
-	}
-	want := habits.Store{
-		Habits: []habits.Habit{
-			{Name: "k8s", LastCheck: Now(), Streak: 4, Output: io.Discard},
-			{Name: "piano", LastCheck: Now(), Streak: 1, Output: io.Discard},
-			{Name: "code", LastCheck: Now(), Streak: 1, Output: io.Discard},
-			{Name: "Go", LastCheck: Now(), Streak: 5, Output: io.Discard},
-			{Name: "docker", LastCheck: Now(), Streak: 17, Output: io.Discard},
-			{Name: "SQL", LastCheck: Now(), Streak: 30, Done: true, Output: io.Discard},
-			{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true, Output: io.Discard},
-		},
-		Output: io.Discard,
+	//Making temp db
+	dbFile := tempFile()
+	//Making a store
+	dbTest := habits.FromSQLite(dbFile)
+	dbTest.Output = io.Discard
+	dbTest.Seed(seedData)
+	//Testing
+	want := []habits.Habit{
+		{ID: 1, Name: "k8s", LastCheck: Now(), Streak: 4},
+		{ID: 2, Name: "piano", LastCheck: Now(), Streak: 1},
+		{ID: 3, Name: "code", LastCheck: Now(), Streak: 1},
+		{ID: 4, Name: "Go", LastCheck: Now(), Streak: 5},
+		{ID: 5, Name: "docker", LastCheck: Now(), Streak: 17},
+		{ID: 6, Name: "SQL", LastCheck: Now(), Streak: 30, Done: true},
+		{ID: 7, Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
 	}
 	habitNames := []string{"k8s", "piano", "code", "Go", "docker", "SQL", "NoSQL"}
 
 	for _, habitName := range habitNames {
-		habit, _ := store.Find(habitName)
-		days, _ := store.LastCheckDays(Now(), *habit)
-		habit.DecisionsHandler(Now(), days)
+		habit, _ := dbTest.GetOne(habitName)
+		days := habit.LastCheckDays(Now())
+		dbTest.DecisionsHandler(&habit, days, Now())
 	}
+	got := dbTest.GetAll()
 
-	if !cmp.Equal(want, store) {
-		t.Error(cmp.Diff(want, store))
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }

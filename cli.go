@@ -1,61 +1,38 @@
 package habits
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
-// Hard coding the file name for the destination file that contains the habits
-const habitsFileName = ".habits.json"
+const dbFIle = "./data.db"
 
 func RunCli() {
 
-	s := Store{}
-	//Checking if the source file exists
-	_, err := os.OpenFile(habitsFileName, os.O_RDWR, 0600)
-	if errors.Is(err, os.ErrNotExist) {
-		err := s.Save(habitsFileName)
-		if err != nil {
-			fmt.Printf("unable to save a file: %v\n", err)
-		}
-	}
-	//Parse the habit
 	habitName := strings.Join(os.Args[1:], " ")
-	//Use the Load method to read habits from file
-	if err := s.Load(habitsFileName); err != nil {
-		_, err := fmt.Fprintln(os.Stderr, err)
-		if err != nil {
-			fmt.Printf("failed to read %s: %s\n", habitsFileName, err)
-		}
-		os.Exit(1)
-	}
+	store := FromSQLite(dbFIle)
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
-		for _, item := range s.Habits {
-			if item.Done {
+		habits := store.GetAll()
+		for _, habit := range habits {
+			if habit.Done {
 				continue
 			}
-			fmt.Println(item.Name)
+			fmt.Println(habit.Name)
 		}
 		return
 	}
-	//Making a decision
-	habit, found := s.Find(habitName)
+	habit, found := store.GetOne(habitName)
 	if !found {
-		s.Add(habitName)
+		store.Add(habitName)
 	}
 	if found {
-		days, _ := s.LastCheckDays(Now(), *habit)
-		habit.DecisionsHandler(Now(), days)
+		days := habit.LastCheckDays(Now())
+		fmt.Println(days)
+		store.DecisionsHandler(&habit, days, Now())
 	}
-	// Save the new habit to the file
-	if err := s.Save(habitsFileName); err != nil {
-		_, err := fmt.Fprintln(os.Stderr, err)
-		if err != nil {
-			fmt.Printf("failed to save to file %s with following error: %s\n", habitsFileName, err)
-		}
-		os.Exit(1)
-	}
+
 }
