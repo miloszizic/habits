@@ -31,7 +31,7 @@ func RunCli() {
 	}
 		days := habit.LastCheckDays(Now())
 		fmt.Println(days)
-		store.DecisionsHandler(&habit, days, Now())
+		store.PerformHabit(&habit, days, Now())
 	}
 
 }
