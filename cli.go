@@ -25,7 +25,7 @@ func RunCli() {
 		}
 		return
 	}
-	habit, found := store.GetOne(habitName)
+	habit, found := store.GetHabit(habitName)
 	if !found {
 		store.Add(habitName)
 	}
