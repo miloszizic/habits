@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 const DBFile = "./data.db"

@@ -1,6 +1,8 @@
 package habits_test
 
 import (
+	"database/sql"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -30,7 +32,23 @@ var seedData = []habits.Habit{
 	{Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
 }
 
-//tempFile makes a temp file for the database
+const sqlInsert = `INSERT INTO habits (name, last_check, streak, done) VALUES (?,?,?,?)`
+
+//Seed is adding testing data to the database
+func Seed(db *sql.DB, h []habits.Habit) {
+	var doneI int
+	for _, v := range h {
+		if v.Done {
+			doneI = 1
+		} else {
+			doneI = 0
+		}
+		_, err := db.Exec(sqlInsert, v.Name, v.LastCheck, v.Streak, doneI)
+		if err != nil {
+			fmt.Printf("seed execute failed: %v", err)
+		}
+	}
+}
 
 func TestLastCheckDays(t *testing.T) {
 	t.Parallel()
@@ -40,7 +58,7 @@ func TestLastCheckDays(t *testing.T) {
 	//Making a store
 	store := habits.FromSQLite(dbFile)
 	store.Output = io.Discard
-	store.Seed(seedData)
+	Seed(store.DB, seedData)
 	// Testing
 	want := 3
 	habit, _ := store.GetHabit("piano")
@@ -55,12 +73,12 @@ func TestAdd(t *testing.T) {
 	//Making temp db
 	dbFile := t.TempDir() + "test.db"
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
-	dbTest.Output = io.Discard
+	store := habits.FromSQLite(dbFile)
+	store.Output = io.Discard
 	// Testing
 	want := "piano"
-	dbTest.Add(want)
-	dbHabit, _ := dbTest.GetHabit("piano")
+	store.Add(want)
+	dbHabit, _ := store.GetHabit("piano")
 	got := dbHabit.Name
 	if got != want {
 		t.Errorf("expected %q, got %q instead.", want, got)
@@ -72,12 +90,12 @@ func TestGetOne(t *testing.T) {
 	//Making temp db
 	dbFile := t.TempDir() + "test.db"
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
-	dbTest.Output = io.Discard
-	dbTest.Seed(seedData)
+	store := habits.FromSQLite(dbFile)
+	store.Output = io.Discard
+	Seed(store.DB, seedData)
 	// Testing
 	want := habits.Habit{ID: 4, Name: "Go", LastCheck: dayBefore, Streak: 4}
-	got, _ := dbTest.GetHabit("Go")
+	got, _ := store.GetHabit("Go")
 	if got != want {
 		t.Errorf("expected %v, got %v instead.", want, got)
 	}
@@ -89,11 +107,11 @@ func TestGetOneInvalid(t *testing.T) {
 	//Making temp db
 	dbFile := t.TempDir() + "test.db"
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
-	dbTest.Output = io.Discard
-	dbTest.Seed(seedData)
+	store := habits.FromSQLite(dbFile)
+	store.Output = io.Discard
+	Seed(store.DB, seedData)
 	// Testing
-	habit, found := dbTest.GetHabit("Biking")
+	habit, found := store.GetHabit("Biking")
 	if found {
 		t.Errorf("expected nil value for habit got %v", habit)
 	}
@@ -104,9 +122,9 @@ func TestGetAllSeed(t *testing.T) {
 	//Making temp db
 	dbFile := t.TempDir() + "test.db"
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
-	dbTest.Output = io.Discard
-	dbTest.Seed(seedData)
+	store := habits.FromSQLite(dbFile)
+	store.Output = io.Discard
+	Seed(store.DB, seedData)
 	// Testing
 	want := []habits.Habit{
 		{ID: 1, Name: "k8s", LastCheck: sameDay, Streak: 4},
@@ -117,7 +135,7 @@ func TestGetAllSeed(t *testing.T) {
 		{ID: 6, Name: "SQL", LastCheck: dayBefore, Streak: 29, Done: false},
 		{ID: 7, Name: "NoSQL", LastCheck: sameDay, Streak: 30, Done: true},
 	}
-	got := dbTest.AllHabits()
+	got := store.AllHabits()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
@@ -128,14 +146,14 @@ func TestBreak(t *testing.T) {
 	//Making temp db
 	dbFile := t.TempDir() + "test.db"
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
-	dbTest.Output = io.Discard
-	dbTest.Seed(seedData)
+	store := habits.FromSQLite(dbFile)
+	store.Output = io.Discard
+	Seed(store.DB, seedData)
 	// Testing
 	want := habits.Habit{ID: 4, Name: "Go", LastCheck: Now(), Streak: 1}
-	habit, _ := dbTest.GetHabit("Go")
-	dbTest.Break(habit, Now())
-	got, _ := dbTest.GetHabit("Go")
+	habit, _ := store.GetHabit("Go")
+	store.Break(habit, Now())
+	got, _ := store.GetHabit("Go")
 	if got != want {
 		t.Errorf("expected %v, got %v instead.", want, got)
 	}
@@ -145,14 +163,14 @@ func TestUpdateYesterday(t *testing.T) {
 	//Making temp db
 	dbFile := t.TempDir() + "test.db"
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
-	dbTest.Output = io.Discard
-	dbTest.Seed(seedData)
+	store := habits.FromSQLite(dbFile)
+	store.Output = io.Discard
+	Seed(store.DB, seedData)
 	// Testing
 	want := habits.Habit{ID: 4, Name: "Go", LastCheck: Now(), Streak: 5}
-	habit, _ := dbTest.GetHabit("Go")
-	dbTest.UpdateYesterday(habit, Now())
-	got, _ := dbTest.GetHabit("Go")
+	habit, _ := store.GetHabit("Go")
+	store.UpdateYesterday(habit, Now())
+	got, _ := store.GetHabit("Go")
 	if got != want {
 		t.Errorf("expected %v, got %v instead.", want, got)
 	}
@@ -163,14 +181,14 @@ func TestDone(t *testing.T) {
 	//Making temp db
 	dbFile := t.TempDir() + "test.db"
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
-	dbTest.Output = io.Discard
-	dbTest.Seed(seedData)
+	store := habits.FromSQLite(dbFile)
+	store.Output = io.Discard
+	Seed(store.DB, seedData)
 	// Testing
 	want := habits.Habit{ID: 4, Name: "Go", LastCheck: Now(), Streak: 4, Done: true}
-	habit, _ := dbTest.GetHabit("Go")
-	dbTest.Done(habit, Now())
-	got, _ := dbTest.GetHabit("Go")
+	habit, _ := store.GetHabit("Go")
+	store.Done(habit, Now())
+	got, _ := store.GetHabit("Go")
 	if got != want {
 		t.Errorf("expected %v, got %v instead.", want, got)
 	}
@@ -181,9 +199,9 @@ func TestDecisionsHandler(t *testing.T) {
 	//Making temp db
 	dbFile := t.TempDir() + "test.db"
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
-	dbTest.Output = io.Discard
-	dbTest.Seed(seedData)
+	store := habits.FromSQLite(dbFile)
+	store.Output = io.Discard
+	Seed(store.DB, seedData)
 	//Testing
 	want := []habits.Habit{
 		{ID: 1, Name: "k8s", LastCheck: Now(), Streak: 4},
@@ -197,11 +215,11 @@ func TestDecisionsHandler(t *testing.T) {
 	habitNames := []string{"k8s", "piano", "code", "Go", "docker", "SQL", "NoSQL"}
 
 	for _, habitName := range habitNames {
-		habit, _ := dbTest.GetHabit(habitName)
+		habit, _ := store.GetHabit(habitName)
 		days := habit.LastCheckDays(Now())
-		dbTest.PerformHabit(&habit, days, Now())
+		store.PerformHabit(&habit, days, Now())
 	}
-	got := dbTest.AllHabits()
+	got := store.AllHabits()
 
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))

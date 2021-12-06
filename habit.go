@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -64,22 +66,6 @@ func FromSQLite(dbFIle string) *Store {
 	}
 }
 
-//Seed is adding testing data to the database
-func (s *Store) Seed(h []Habit) {
-	var doneI int
-	for _, v := range h {
-		if v.Done {
-			doneI = 1
-		} else {
-			doneI = 0
-		}
-		_, err := s.DB.Exec(sqlInsert, v.Name, v.LastCheck, v.Streak, doneI)
-		if err != nil {
-			fmt.Printf("seed execute failed: %v", err)
-		}
-	}
-}
-
 //Print as Store method is wrapping Fprintf so that is not needed to specify
 //the default output every time
 func (s Store) Print(massage string, params ...interface{}) {
@@ -127,7 +113,12 @@ func (s *Store) AllHabits() []Habit {
 	if err != nil {
 		fmt.Printf("query error: %v\n", err)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Printf("error closing rows: %v\n", err)
+		}
+	}(rows)
 	var done int
 	habit := Habit{}
 	for rows.Next() {
