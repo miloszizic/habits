@@ -51,8 +51,14 @@ type Store struct {
 //and returns a store with connection
 func FromSQLite(dbFIle string) *Store {
 	db, _ := sql.Open("sqlite3", dbFIle)
-	stmt, _ := db.Prepare(sqlSchema)
-	stmt.Exec()
+	stmt, err := db.Prepare(sqlSchema)
+	if err != nil {
+		fmt.Printf("failed to prepare schema with error: %v\n", err)
+	}
+	_, err = stmt.Exec()
+	if err != nil {
+		fmt.Printf("failed to execute schema with error: %v\n", err)
+	}
 	return &Store{
 		DB: db,
 	}
@@ -102,8 +108,8 @@ func (s *Store) Add(name string) {
 	s.Print("Good luck with your new '%s' habit. Don't forget to do it again tomorrow.", name)
 }
 
-//GetOne takes habit name and returns a habit if it finds one
-func (s *Store) GetOne(name string) (Habit, bool) {
+//GetHabit takes habit name and returns a habit if it finds one
+func (s *Store) GetHabit(name string) (Habit, bool) {
 	row := s.DB.QueryRow(sqlGetOne, name)
 	h := Habit{}
 	var b bool
@@ -114,8 +120,8 @@ func (s *Store) GetOne(name string) (Habit, bool) {
 	return h, true
 }
 
-//GetAll lists all Habits in the database
-func (s *Store) GetAll() []Habit {
+//AllHabits lists all Habits in the database
+func (s *Store) AllHabits() []Habit {
 	habits := []Habit{}
 	rows, err := s.DB.Query(sqlGetAll)
 	if err != nil {
@@ -164,8 +170,8 @@ func (s *Store) Done(habit Habit, time time.Time) {
 	}
 }
 
-//DecisionsHandler makes a dissection based on days between current time and last checked date
-func (s *Store) DecisionsHandler(h *Habit, days int, time time.Time) {
+//PerformHabit makes a dissection based on days between current time and last checked date
+func (s *Store) PerformHabit(h *Habit, days int, time time.Time) {
 	switch {
 	case days >= 0 && h.Done:
 		s.Print("You already finished the %v habit.\n", h.Name)

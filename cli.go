@@ -16,7 +16,6 @@ func RunCli() {
 	store := FromSQLite(DBFile)
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
-		habits := store.GetAll()
 		for _, habit := range store.AllHabits() {
 			if habit.Done {
 				continue
@@ -29,9 +28,7 @@ func RunCli() {
 	if !found {
 		store.Add(habitName)
 	}
-		days := habit.LastCheckDays(Now())
-		fmt.Println(days)
-		store.PerformHabit(&habit, days, Now())
-	}
-
+	days := habit.LastCheckDays(Now())
+	fmt.Println(days)
+	store.PerformHabit(&habit, days, Now())
 }
