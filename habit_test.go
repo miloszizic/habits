@@ -42,7 +42,7 @@ func tempFile() string {
 func TestLastCheckDays(t *testing.T) {
 	t.Parallel()
 	//Making temp db
-	dbFile := tempFile()
+	dbFile := t.TempDir() + "test.db"
 	t.Logf("db file: %s", dbFile) //for checking the temp name
 	//Making a store
 	store := habits.FromSQLite(dbFile)
