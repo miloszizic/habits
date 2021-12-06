@@ -45,7 +45,7 @@ func TestLastCheckDays(t *testing.T) {
 	dbFile := tempFile()
 	t.Logf("db file: %s", dbFile) //for checking the temp name
 	//Making a store
-	dbTest := habits.FromSQLite(dbFile)
+	store := habits.FromSQLite(dbFile)
 	dbTest.Output = io.Discard
 	dbTest.Seed(seedData)
 	// Testing
