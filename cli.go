@@ -13,7 +13,7 @@ const DBFile = "./data.db"
 func RunCli() {
 
 	habitName := strings.Join(os.Args[1:], " ")
-	store := FromSQLite(dbFIle)
+	store := FromSQLite(DBFile)
 	if len(os.Args) == 1 {
 		fmt.Println("You are tracking following habits: ")
 		habits := store.GetAll()
