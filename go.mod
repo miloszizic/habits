@@ -1,4 +1,4 @@
-module github.com/miloszizic/habits
+module github.com/miloszizic/habits/v1
 
 go 1.17
 

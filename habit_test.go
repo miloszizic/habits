@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/miloszizic/habits"
+	"github.com/miloszizic/habits/v1"
 )
 
 //Mocks time.Now method for testing purposes
