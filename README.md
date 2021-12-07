@@ -19,11 +19,10 @@ If you want to start tracking a new habit, change the name: **` habit meditating
 * Tracking habits for 30-days
 * Keeps you motivated with cool massages :)
 * Tracking multiple habits
-* Read data from and to a disk  (JSON format)
+* Read and write data to SQLite3 database
 * Calculate time intervals so that you know whether to extend the current streak or start a new one
 
 ## Future features:
-* Read and Write to and from multiple data sources
 * Access from the Web Interface
 * Data loss prevention
 
