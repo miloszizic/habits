@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 )
 
 const DBFile = "./data.db"
@@ -19,14 +18,15 @@ func RunCli() {
 		}
 		return
 	}
-	habit, found := store.GetHabit(habitName)
-	if !found {
-		store.Add(Habit{
-			Name:          habitName,
-			LastPerformed: time.Now(),
-		})
+	habit, err := store.GetHabit(habitName)
+	if err != nil {
+		store.Print("searching for record returned an error:%v", err)
 	}
-	days := store.LastCheckDays(habit)
+	if habit == nil {
+		store.Add(Habit{Name: habitName})
+		return
+	}
+	days := store.LastCheckDays(*habit)
 	fmt.Println(days)
-	store.PerformHabit(&habit, days)
+	store.PerformHabit(*habit, days)
 }

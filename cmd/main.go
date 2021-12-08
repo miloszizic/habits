@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/miloszizic/habits/v1"
+	"github.com/miloszizic/habits"
 )
 
 func main() {

@@ -16,14 +16,14 @@ const (
 		CREATE TABLE IF NOT EXISTS "habits" (
 	   		"ID" INTEGER PRIMARY KEY AUTOINCREMENT,
 			"name" TEXT NOT NULL,
-			"last_check" DATETIME NOT NULL,
+			"LastPerformed" DATETIME NOT NULL,
 			"streak" INTEGER
 	);
 	`
-	sqlGetAll    = `SELECT ID, name, last_check, streak FROM habits`
-	sqlGetOne    = `SELECT ID, name, last_check, streak FROM habits WHERE name=?;`
-	sqlBreak     = `UPDATE habits set last_check=?,streak=1 WHERE name=?`
-	sqlYesterday = `UPDATE habits set last_check=?,streak=? WHERE name=?`
+	sqlGetAll      = `SELECT ID, name, LastPerformed, streak FROM habits`
+	sqlGetOneHabit = `SELECT ID, name, LastPerformed, streak FROM habits WHERE name=?;`
+	//sqlBreak     = `UPDATE habits set last_check=?,streak=1 WHERE name=?`
+	sqlYesterday = `UPDATE habits set LastPerformed=?,streak=? WHERE name=?`
 )
 
 // Habit struct has all habit attributes
@@ -83,27 +83,30 @@ func (s Store) LastCheckDays(h Habit) int {
 // Add method is adding a habit to the table of Habits
 func (s *Store) Add(habit Habit) {
 	_, err := s.DB.Exec(
-		`INSERT INTO habits (name, last_check, streak) VALUES (?,?,?)`,
+		`INSERT INTO habits (name, LastPerformed, streak) VALUES (?,?,?)`,
 		habit.Name,
-		habit.LastPerformed,
+		s.Now(),
 		habit.Streak,
 	)
 	if err != nil {
 		fmt.Printf("execute failed: %v", err)
 	}
-	s.Print("Good luck with your new '%s' habit. Don't forget to do it again tomorrow.", habit.Name)
+	s.Print("Good luck with your new '%s' habit. Don't forget to do it again tomorrow.\n", habit.Name)
 }
 
 // GetHabit takes habit name and returns a habit if it finds one
-func (s *Store) GetHabit(name string) (Habit, bool) {
-	row := s.DB.QueryRow(sqlGetOne, name)
-	h := Habit{}
-	var b bool
+func (s *Store) GetHabit(name string) (*Habit, error) {
+	row := s.DB.QueryRow(sqlGetOneHabit, name)
+	h := &Habit{}
 	err := row.Scan(&h.ID, &h.Name, &h.LastPerformed, &h.Streak)
-	if errors.Is(err, sql.ErrNoRows) {
-		return Habit{}, b
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		} else {
+			return nil, err
+		}
 	}
-	return h, true
+	return h, nil
 }
 
 // AllHabits lists all Habits in the database
@@ -144,18 +147,18 @@ func (s *Store) Perform(habit Habit) {
 }
 
 // PerformHabit makes a dissection based on days between current time and last checked date
-func (s *Store) PerformHabit(h *Habit, days int) {
+func (s *Store) PerformHabit(h Habit, days int) {
 	switch {
 	case days == 0:
-		s.Print("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak+1)
+		s.Print("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak)
 	case days == 1 && h.Streak > 15:
-		s.Perform(*h)
+		s.Perform(h)
 		s.Print("You're currently on a %d-day streak for '%s'. Stick to it!\n", h.Streak+1, h.Name)
 	case days == 1:
-		s.Perform(*h)
+		s.Perform(h)
 		s.Print("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak+1)
 	case days >= 2:
-		s.Perform(*h)
+		s.Perform(h)
 		s.Print("You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n", h.Name, days)
 	}
 }

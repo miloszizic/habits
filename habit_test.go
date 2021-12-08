@@ -35,7 +35,7 @@ var seedData = []habits.Habit{
 	{Name: "NoSQL", LastPerformed: today, Streak: 30},
 }
 
-const sqlInsert = `INSERT INTO habits (name, last_check, streak) VALUES (?,?,?)`
+const sqlInsert = `INSERT INTO habits (name, LastPerformed, streak) VALUES (?,?,?)`
 
 // Seed is adding testing data to the database
 func Seed(db *sql.DB, h []habits.Habit) {
@@ -82,13 +82,17 @@ func TestAdd(t *testing.T) {
 	// Making a store
 	store := habits.FromSQLite(dbFile)
 	store.Output = io.Discard
+	store.Now = fakeNow
 	// Testing
-	want := "piano"
-	store.Add(habits.Habit{Name: want})
-	dbHabit, _ := store.GetHabit("piano")
-	got := dbHabit.Name
-	if got != want {
-		t.Errorf("expected %q, got %q instead.", want, got)
+
+	store.Add(habits.Habit{Name: "piano"})
+	want := &habits.Habit{ID: 1, Name: "piano", LastPerformed: fakeNow(), Streak: 0}
+	got, err := store.GetHabit("piano")
+	if err != nil {
+		t.Error(err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
@@ -101,27 +105,31 @@ func TestGetOne(t *testing.T) {
 	store.Output = io.Discard
 	Seed(store.DB, seedData)
 	// Testing
-	want := habits.Habit{ID: 4, Name: "Go", LastPerformed: yesterday, Streak: 4}
-	got, _ := store.GetHabit("Go")
-	if got != want {
-		t.Errorf("expected %v, got %v instead.", want, got)
+	want := &habits.Habit{ID: 4, Name: "Go", LastPerformed: yesterday, Streak: 4}
+	got, err := store.GetHabit("Go")
+	if err != nil {
+		t.Error(err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
 //
-func TestGetOneInvalid(t *testing.T) {
+func TestAddingHabitIfNotExiting(t *testing.T) {
 	t.Parallel()
 	// Making temp db
 	dbFile := t.TempDir() + "test.db"
 	// Making a store
 	store := habits.FromSQLite(dbFile)
 	store.Output = io.Discard
-	Seed(store.DB, seedData)
+	store.Now = fakeNow
 	// Testing
-	habit, found := store.GetHabit("Biking")
-	if found {
-		t.Errorf("expected nil value for habit got %v", habit)
+	_, err := store.GetHabit("Biking")
+	if err == nil {
+		fmt.Println("searching for non existing record should return an err, but got nil")
 	}
+
 }
 
 func TestGetAllSeed(t *testing.T) {
@@ -161,9 +169,15 @@ func TestPerformIncreasesStreakIfDoneYesterday(t *testing.T) {
 		LastPerformed: yesterday,
 		Streak:        4,
 	})
-	habit, _ := store.GetHabit("Go")
-	store.Perform(habit)
-	updatedHabit, _ := store.GetHabit("Go")
+	habit, err := store.GetHabit("Go")
+	if err != nil {
+		t.Error(err)
+	}
+	store.Perform(*habit)
+	updatedHabit, err := store.GetHabit("Go")
+	if err != nil {
+		t.Error(err)
+	}
 	want := 5
 	got := updatedHabit.Streak
 	if got != want {
@@ -186,7 +200,10 @@ func TestPerformResetsStreakIfDoneBeforeYesterday(t *testing.T) {
 	store.Add(habit)
 	store.Now = fakeNow
 	store.Perform(habit)
-	updatedHabit, _ := store.GetHabit("Go")
+	updatedHabit, err := store.GetHabit("Go")
+	if err != nil {
+		t.Error(err)
+	}
 	want := 1
 	got := updatedHabit.Streak
 	if !cmp.Equal(want, got) {
@@ -216,9 +233,12 @@ func TestPerformHabit(t *testing.T) {
 	habitNames := []string{"k8s", "piano", "code", "Go", "docker", "SQL", "NoSQL"}
 
 	for _, habitName := range habitNames {
-		habit, _ := store.GetHabit(habitName)
-		days := store.LastCheckDays(habit)
-		store.PerformHabit(&habit, days)
+		habit, err := store.GetHabit(habitName)
+		if err != nil {
+			t.Error(err)
+		}
+		days := store.LastCheckDays(*habit)
+		store.PerformHabit(*habit, days)
 	}
 	got := store.AllHabits()
 
