@@ -13,7 +13,7 @@ import (
 )
 
 // Mocks time.Now method for testing purposes
-var fakeNow = func() time.Time {
+func fakeNow() time.Time {
 	return time.Date(2021, 10, 15, 17, 8, 0, 0, time.UTC)
 }
 
@@ -55,7 +55,7 @@ func TestLastCheckDays(t *testing.T) {
 	// Making a store
 	store := habits.FromSQLite(dbFile)
 	store.Output = io.Discard
-	store.Now = fakeNow
+	store.Now = fakeNow()
 	tcs := []struct {
 		date time.Time
 		want int
@@ -82,7 +82,7 @@ func TestAdd(t *testing.T) {
 	// Making a store
 	store := habits.FromSQLite(dbFile)
 	store.Output = io.Discard
-	store.Now = fakeNow
+	store.Now = fakeNow()
 	// Testing
 
 	store.Add(habits.Habit{Name: "piano"})
@@ -123,7 +123,7 @@ func TestAddingHabitIfNotExiting(t *testing.T) {
 	// Making a store
 	store := habits.FromSQLite(dbFile)
 	store.Output = io.Discard
-	store.Now = fakeNow
+	store.Now = fakeNow()
 	// Testing
 	_, err := store.GetHabit("Biking")
 	if err == nil {
@@ -163,7 +163,7 @@ func TestPerformIncreasesStreakIfDoneYesterday(t *testing.T) {
 	// Making a store
 	store := habits.FromSQLite(dbFile)
 	store.Output = io.Discard
-	store.Now = fakeNow
+	store.Now = fakeNow()
 	store.Add(habits.Habit{
 		Name:          "Go",
 		LastPerformed: yesterday,
@@ -198,7 +198,7 @@ func TestPerformResetsStreakIfDoneBeforeYesterday(t *testing.T) {
 		Streak:        4,
 	}
 	store.Add(habit)
-	store.Now = fakeNow
+	store.Now = fakeNow()
 	store.Perform(habit)
 	updatedHabit, err := store.GetHabit("Go")
 	if err != nil {
@@ -218,7 +218,7 @@ func TestPerformHabit(t *testing.T) {
 	// Making a store
 	store := habits.FromSQLite(dbFile)
 	store.Output = io.Discard
-	store.Now = fakeNow
+	store.Now = fakeNow()
 	Seed(store.DB, seedData)
 	// Testing
 	want := []habits.Habit{

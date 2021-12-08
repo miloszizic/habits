@@ -26,6 +26,10 @@ const (
 	sqlYesterday = `UPDATE habits set LastPerformed=?,streak=? WHERE name=?`
 )
 
+func currentTime() time.Time {
+	return time.Now()
+}
+
 // Habit struct has all habit attributes
 type Habit struct {
 	ID            int
@@ -40,7 +44,7 @@ type Store struct {
 	Habits []Habit
 	Output io.Writer
 	DB     *sql.DB
-	Now    func() time.Time
+	Now    time.Time
 }
 
 // FromSQLite is checking for scheme to prepare it, if it doesn't exist
@@ -56,10 +60,8 @@ func FromSQLite(dbFIle string) *Store {
 		fmt.Printf("failed to execute schema with error: %v\n", err)
 	}
 	return &Store{
-		DB: db,
-		Now: func() time.Time {
-			return time.Now()
-		},
+		DB:  db,
+		Now: currentTime(),
 	}
 }
 
@@ -76,7 +78,7 @@ func (s Store) Print(massage string, params ...interface{}) {
 // LastCheckDays method checks  for number of days current date and
 func (s Store) LastCheckDays(h Habit) int {
 	lastPerformedCalendarDay := h.LastPerformed.Truncate(24 * time.Hour)
-	nowCalendarDay := s.Now().Truncate(24 * time.Hour)
+	nowCalendarDay := s.Now.Truncate(24 * time.Hour)
 	return int(nowCalendarDay.Sub(lastPerformedCalendarDay).Hours()) / 24
 }
 
@@ -85,7 +87,7 @@ func (s *Store) Add(habit Habit) {
 	_, err := s.DB.Exec(
 		`INSERT INTO habits (name, LastPerformed, streak) VALUES (?,?,?)`,
 		habit.Name,
-		s.Now(),
+		s.Now,
 		habit.Streak,
 	)
 	if err != nil {
@@ -140,7 +142,7 @@ func (s *Store) Perform(habit Habit) {
 	} else {
 		habit.Streak++
 	}
-	_, err := s.DB.Exec(sqlYesterday, s.Now(), habit.Streak, habit.Name)
+	_, err := s.DB.Exec(sqlYesterday, s.Now, habit.Streak, habit.Name)
 	if err != nil {
 		fmt.Printf(" failed to execute last checked date and streak on habit with error: %v\n", err)
 	}
