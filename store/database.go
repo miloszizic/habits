@@ -1,73 +1,108 @@
-package habits
+package store
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
 
+//currentTime returns system time
+func currentTime() time.Time {
+	return time.Now()
+}
+
 const (
-	sqlSchema = `
+	sqlite3Schema = `
 		CREATE TABLE IF NOT EXISTS "habits" (
 	   		"ID" INTEGER PRIMARY KEY AUTOINCREMENT,
 			"name" TEXT NOT NULL,
 			"LastPerformed" DATETIME NOT NULL,
 			"streak" INTEGER
-	);
+	);`
+
+	mySqlSchema = `
+	CREATE TABLE IF NOT EXISTS habits (
+  		ID INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  		name TEXT NOT NULL,
+ 		LastPerformed DATETIME NOT NULL,
+  		streak INT NOT NULL
+)
 	`
-	sqlGetAll      = `SELECT ID, name, LastPerformed, streak FROM habits`
-	sqlGetOneHabit = `SELECT ID, name, LastPerformed, streak FROM habits WHERE name=?;`
-	//sqlBreak     = `UPDATE habits set last_check=?,streak=1 WHERE name=?`
-	sqlYesterday = `UPDATE habits set LastPerformed=?,streak=? WHERE name=?`
 )
 
-func currentTime() time.Time {
-	return time.Now()
-}
-
-// Habit struct has all habit attributes
-type Habit struct {
-	ID            int
-	Name          string
-	LastPerformed time.Time
-	Streak        int
-	Output        io.Writer
-}
-
-// Store is a struct of all Store properties
-type Store struct {
+type DBStore struct {
 	Habits []Habit
 	Output io.Writer
 	DB     *sql.DB
 	Now    time.Time
 }
 
-// FromSQLite is checking for scheme to prepare it, if it doesn't exist
-// and returns a store with connection
-func FromSQLite(dbFIle string) *Store {
-	db, _ := sql.Open("sqlite3", dbFIle)
-	stmt, err := db.Prepare(sqlSchema)
-	if err != nil {
-		fmt.Printf("failed to prepare schema with error: %v\n", err)
-	}
-	_, err = stmt.Exec()
-	if err != nil {
-		fmt.Printf("failed to execute schema with error: %v\n", err)
-	}
-	return &Store{
-		DB:  db,
-		Now: currentTime(),
-	}
+type HabitStore interface {
+	LastCheckDays(h Habit) int
+	Add(habit Habit)
+	AllHabits() ([]Habit, error)
+	Perform(habit Habit)
+	PerformHabit(h Habit, days int)
+	GetHabit(name string) (*Habit, error)
 }
 
-// Print as Store method is wrapping Fprintf so that is not needed to specify
+func (s *DBStore) Close() {
+	s.DB.Close()
+}
+
+// FromMySQL  is checking for scheme to prepare it, if it doesn't exist
+// and returns a DBStore with connection
+func FromMySQL(source string) (*DBStore, error) {
+	db, err := sql.Open("mysql", source)
+	if err != nil {
+		return nil, err
+	}
+	stmt, err := db.Prepare(mySqlSchema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare schema with error: %v", err)
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec()
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute schema with error: %v", err)
+
+	}
+	return &DBStore{
+		DB:  db,
+		Now: currentTime(),
+	}, nil
+}
+
+// FromSQLite  is checking for scheme to prepare it, if it doesn't exist
+// and returns a DBStore with connection
+func FromSQLite(source string) (*DBStore, error) {
+	db, err := sql.Open("sqlite3", source)
+	if err != nil {
+		return nil, err
+	}
+	stmt, err := db.Prepare(sqlite3Schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare schema with error: %v", err)
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec()
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute schema with error: %v", err)
+	}
+	return &DBStore{
+		DB:  db,
+		Now: currentTime(),
+	}, nil
+}
+
+// Print as DBStore method is wrapping Fprintf so that is not needed to specify
 // the default output every time
-func (s Store) Print(massage string, params ...interface{}) {
+func (s DBStore) Print(massage string, params ...interface{}) {
 	if s.Output == nil {
 		fmt.Fprintf(os.Stdout, massage, params...)
 	} else {
@@ -76,14 +111,14 @@ func (s Store) Print(massage string, params ...interface{}) {
 }
 
 // LastCheckDays method checks  for number of days current date and
-func (s Store) LastCheckDays(h Habit) int {
+func (s DBStore) LastCheckDays(h Habit) int {
 	lastPerformedCalendarDay := h.LastPerformed.Truncate(24 * time.Hour)
 	nowCalendarDay := s.Now.Truncate(24 * time.Hour)
 	return int(nowCalendarDay.Sub(lastPerformedCalendarDay).Hours()) / 24
 }
 
 // Add method is adding a habit to the table of Habits
-func (s *Store) Add(habit Habit) {
+func (s *DBStore) Add(habit Habit) {
 	_, err := s.DB.Exec(
 		`INSERT INTO habits (name, LastPerformed, streak) VALUES (?,?,?)`,
 		habit.Name,
@@ -97,24 +132,20 @@ func (s *Store) Add(habit Habit) {
 }
 
 // GetHabit takes habit name and returns a habit if it finds one
-func (s *Store) GetHabit(name string) (*Habit, error) {
-	row := s.DB.QueryRow(sqlGetOneHabit, name)
-	h := &Habit{}
+func (s *DBStore) GetHabit(name string) (*Habit, error) {
+	row := s.DB.QueryRow(`SELECT ID, name, LastPerformed, streak FROM habits WHERE name=?;`, name)
+	h := Habit{}
 	err := row.Scan(&h.ID, &h.Name, &h.LastPerformed, &h.Streak)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		} else {
-			return nil, err
-		}
+		return nil, fmt.Errorf("failed to get Habit with error: %v", err)
 	}
-	return h, nil
+	return &h, nil
 }
 
 // AllHabits lists all Habits in the database
-func (s *Store) AllHabits() []Habit {
-	habits := []Habit{}
-	rows, err := s.DB.Query(sqlGetAll)
+func (s *DBStore) AllHabits() ([]Habit, error) {
+	allHabits := []Habit{}
+	rows, err := s.DB.Query(`SELECT ID, name, LastPerformed, streak FROM habits`)
 	if err != nil {
 		fmt.Printf("query error: %v\n", err)
 	}
@@ -130,26 +161,26 @@ func (s *Store) AllHabits() []Habit {
 		if err != nil {
 			fmt.Printf("scan error: %v\n", err)
 		}
-		habits = append(habits, habit)
+		allHabits = append(allHabits, habit)
 	}
-	return habits
+	return allHabits, nil
 }
 
 // Perform changes the last checked date
-func (s *Store) Perform(habit Habit) {
+func (s *DBStore) Perform(habit Habit) {
 	if s.LastCheckDays(habit) > 1 {
 		habit.Streak = 1
 	} else {
 		habit.Streak++
 	}
-	_, err := s.DB.Exec(sqlYesterday, s.Now, habit.Streak, habit.Name)
+	_, err := s.DB.Exec(`UPDATE habits set LastPerformed=?,streak=? WHERE name=?`, s.Now, habit.Streak, habit.Name)
 	if err != nil {
 		fmt.Printf(" failed to execute last checked date and streak on habit with error: %v\n", err)
 	}
 }
 
 // PerformHabit makes a dissection based on days between current time and last checked date
-func (s *Store) PerformHabit(h Habit, days int) {
+func (s *DBStore) PerformHabit(h Habit, days int) {
 	switch {
 	case days == 0:
 		s.Print("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak)

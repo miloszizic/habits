@@ -1,3 +1,3 @@
 * Remove Done field ✅
-* Support multiple stores
+* Support multiple stores ✅
 * Don't return second value from GetHabit ✅

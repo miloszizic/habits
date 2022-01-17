@@ -1,0 +1,30 @@
+{{define "header"}}
+<!doctype html>
+<html>
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="min-h-screen bg-gray-100">
+<div class="container-fluid">
+</div>
+<header class="bg-gradient-to-r from-blue-800 to-indigo-800">
+	<nav class="px-8 py-6 flex items-baseline text-white">
+		<div class="text-3xl pr-8 font-serif">HABITS</div>
+		<div class="flex-grow">
+			<a class="text-base font-semibold hover:text-blue-100 pr-6" href="/">List</a>
+			<a class="text-base font-semibold hover:text-blue-100 pr-6" href="/habit">New</a>
+		</div>
+		<div>
+			<a class="px-4 py-2 font-semibold hover:bg-blue-600 pr-8 rounded" href="/">Sign in / Register</a>
+		</div>
+	</nav>
+</header>
+{{end}}
+
+
+{{define "footer"}}
+</body>
+</html>
+{{end}}

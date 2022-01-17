@@ -1,0 +1,26 @@
+{{template "header" .}}
+{{if .}}
+<div class="rounded-t-xl overflow-hidden bg-gradient-to-r from-emerald-25 to-teal-100 p-8">
+	<table class="table-fixed">
+		<thead>
+		  	<tr>
+				<th class="border border-emerald-500 px-4 py-2 text-emerald-600 font-medium">Name</th>
+				<th class="border border-emerald-500 px-4 py-2 text-emerald-600 font-medium">Last Performed</th>
+				<th class="border border-emerald-500 px-4 py-2 text-emerald-600 font-medium">Streak</th>
+			</tr>
+		</thead>
+        {{range .}}
+		<tbody>
+			<tr>
+				<td class="border border-emerald-500 px-4 py-2 text-emerald-600 font-medium">{{.Name}}</td>
+				<td class="border border-emerald-500 px-4 py-2 text-emerald-600 font-medium">{{.LastPerformed.Format "Jan 02, 2006 15:04:05 UTC"}}</td>
+				<td class="border border-emerald-500 px-8 py-2 text-emerald-600 font-medium">{{.Streak}}</td>
+			</tr>
+		</tbody>
+        {{end}}
+		</table>
+		</div>
+{{else}}
+	<p>You are not tracking any habits</p>
+{{end}}
+{{template "footer" .}}

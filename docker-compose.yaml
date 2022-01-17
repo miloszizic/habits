@@ -1,0 +1,39 @@
+# https://docs.docker.com/compose/compose-file
+# docker-compose up
+# docker-compose stop
+# docker-compose down
+
+version: '3.9'
+
+networks:
+  shared-network:
+    driver: bridge
+
+services:
+  db:
+    container_name: habit_db
+    image: mysql:8
+    restart: always
+    networks:
+      - default
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: habits
+      MYSQL_USER: tester
+      MYSQL_PASSWORD: secret
+  testdb:
+    container_name: habit_db_test
+    image: mysql:8
+    restart: always
+    networks:
+      - default
+    ports:
+      - '3307:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: habits
+      MYSQL_USER: tester
+      MYSQL_PASSWORD: secret
+
