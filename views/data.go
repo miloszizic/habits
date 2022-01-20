@@ -11,7 +11,7 @@ const (
 
 // Alert is used to render Bootstrap Alert messages in templates
 type Alert struct {
-	Level   string
+	Color   string
 	Message string
 }
 

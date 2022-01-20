@@ -4,11 +4,16 @@
 		<h1 class="pt-4 pb-8 text-center text-3xl font-bold text-grey-900">
 			Start your habit today!
 		</h1>
-		<form action="/create" method="post">
+		<form action="/habit" method="post">
 			<div class="py-2">
 				<label for="name" class="pb-2 text-sm font-semibold text-gray-800">Name of the new habit </label>
 			</div>
-			<div>
+			<div class="container-fluid">
+                {{if .Alert}}
+                    {{template "alerts" .Alert}}
+                {{end}}
+			</div>
+			<div class="py-2 px-2">
 				<input name="name" id="name" type="text" placeholder="golang" required autocomplete="on"
 					   class="w-full px-3 py-2 border border-grey-300 placeholder-grey-500 text-grey-800 rounded"/>
 			</div>

@@ -35,13 +35,6 @@ const (
 	`
 )
 
-type DBStore struct {
-	Habits []Habit
-	Output io.Writer
-	DB     *sql.DB
-	Now    time.Time
-}
-
 type HabitStore interface {
 	LastCheckDays(h Habit) int
 	Add(habit Habit)
@@ -49,6 +42,13 @@ type HabitStore interface {
 	Perform(habit Habit)
 	PerformHabit(h Habit, days int)
 	GetHabit(name string) (*Habit, error)
+}
+
+type DBStore struct {
+	Habits []Habit
+	Output io.Writer
+	DB     *sql.DB
+	Now    time.Time
 }
 
 func (s *DBStore) Close() {
