@@ -6,9 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/miloszizic/habits/views"
-
 	"github.com/miloszizic/habits/store"
+	"github.com/miloszizic/habits/views"
 )
 
 type Server struct {
@@ -36,6 +35,7 @@ func (s Server) Create(w http.ResponseWriter, r *http.Request) {
 	var vd views.Data
 	habitName := r.FormValue("name")
 	habit := store.Habit{Name: habitName}
+
 	exist, err := s.Store.GetHabit(habitName)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -62,4 +62,5 @@ func (s Server) Create(w http.ResponseWriter, r *http.Request) {
 		}
 		s.Templates.New.Execute(w, vd)
 	}
+
 }
