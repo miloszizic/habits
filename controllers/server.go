@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/miloszizic/habits/templates"
+
 	"github.com/miloszizic/habits/store"
 	"github.com/miloszizic/habits/views"
 )
@@ -17,25 +19,27 @@ type Server struct {
 	}
 }
 
-func (s Server) Home(w http.ResponseWriter, r *http.Request) {
+func (s Server) Home(w http.ResponseWriter, _ *http.Request) {
 	habits, err := s.Store.AllHabits()
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	s.Templates.New = views.Must(views.ParseFS(templates.Files, "home.gohtml", "*.layout.gohtml"))
 	s.Templates.New.Execute(w, habits)
 
 }
 
-func (s Server) Habit(w http.ResponseWriter, r *http.Request) {
+func (s Server) Habit(w http.ResponseWriter, _ *http.Request) {
+	s.Templates.New = views.Must(views.ParseFS(templates.Files, "habit.gohtml", "*.layout.gohtml"))
 	s.Templates.New.Execute(w, nil)
 }
 func (s Server) Create(w http.ResponseWriter, r *http.Request) {
 	var vd views.Data
 	habitName := r.FormValue("name")
 	habit := store.Habit{Name: habitName}
-
+	s.Templates.New = views.Must(views.ParseFS(templates.Files, "habit.gohtml", "*.layout.gohtml"))
 	exist, err := s.Store.GetHabit(habitName)
 	if err != nil {
 		if err != sql.ErrNoRows {
