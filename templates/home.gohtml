@@ -20,8 +20,12 @@
 						<td class="px-6 py-4"><div class="text-sm text-gray-500 ">{{.Name}}</div></td>
 						<td class="px-6 py-4"><div class="text-sm text-gray-500">{{.LastPerformed.Format "Jan 02, 2006 15:04:05 UTC"}}</div></td>
 						<td class="px-6 py-4 text-sm text-gray-500"><div class="text-sm text-gray-500">{{.Streak}}</div></td>
-						<td class="px-6 py-4"><a href="#" class="px-4 py-1 text-sm text-white bg-blue-400 rounded">Perform</a></td>
-						<td class="px-6 py-4"><a href="/" class="px-4 py-1 text-sm text-white bg-red-400 rounded">Delete</a></td>
+						<form action="/perform" method="post">
+							<td class="px-6 py-4"><button type="submit" name="perform" value="{{.Name}}" class="bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full">Perform</button></td>
+						</form>
+						<form action="/" method="post">
+							<td class="px-6 py-4"><button type="submit" name="delete" value="{{.Name}}" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full">Delete</button></td>
+						</form>
 					</tr>
 					</tbody>
 				{{end}}

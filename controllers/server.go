@@ -62,3 +62,32 @@ func (s Server) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+func (s *Server) Delete(w http.ResponseWriter, r *http.Request) {
+	habitName := r.FormValue("delete")
+	s.Store.DeleteHabitByName(habitName)
+	habits, err := s.Store.AllHabits()
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	s.Templates.New = views.Must(views.ParseFS(templates.Files, "home.gohtml", "*.layout.gohtml"))
+	s.Templates.New.Execute(w, habits)
+}
+func (s *Server) PerformHabit(w http.ResponseWriter, r *http.Request) {
+	var vd views.Data
+	habitName := r.FormValue("perform")
+	habit, err := s.Store.GetHabit(habitName)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+	days := s.Store.LastCheckDays(*habit)
+	massage := s.Store.PerformHabit(*habit, days)
+	vd.Alert = &views.Alert{
+		Color:   views.AlertLvlNeutral,
+		Message: massage,
+	}
+	s.Templates.New = views.Must(views.ParseFS(templates.Files, "perform.gohtml", "*.layout.gohtml"))
+	s.Templates.New.Execute(w, vd)
+}

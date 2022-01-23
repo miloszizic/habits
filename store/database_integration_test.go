@@ -39,7 +39,7 @@ var (
 	}
 )
 
-func TestMySqlDatabase(t *testing.T) {
+func TestMySQLAndSQLLiteDatabase(t *testing.T) {
 	storeMySQL, err := store.FromMySQL(testMySqlURL)
 	if err != nil {
 		t.Fatalf("FromMySql() err = %v; want %v", err, nil)
@@ -61,10 +61,12 @@ func TestMySqlDatabase(t *testing.T) {
 		"PerformResetsStreakIfDoneBeforeYesterday": testPerformResetsStreakIfDoneBeforeYesterday,
 		"SeedAndPerformHabit":                      testSeedAndPerformHabit,
 		"DeleteHabitByName":                        testDeleteHabitByName,
+		"GetAllHabits":                             testGetAllHabits,
 	}
-	resetMySqlDB(t, storeMySQL.DB)
-	resetSQLiteDB(t, storeSQLite.DB)
+
 	for name, tc := range tests {
+		resetMySqlDB(t, storeMySQL.DB)
+		resetSQLiteDB(t, storeSQLite.DB)
 		t.Run(name, func(t *testing.T) {
 			tc(t, storeMySQL)
 			tc(t, storeSQLite)
@@ -149,6 +151,33 @@ func testPerformResetsStreakIfDoneBeforeYesterday(t *testing.T, dbStore *store.D
 	}
 	want := 1
 	got := updatedHabit.Streak
+	if !cmp.Equal(want, got, cmpopts.IgnoreFields(store.Habit{}, "ID")) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+func testGetAllHabits(t *testing.T, dbStore *store.DBStore) {
+	Seed(dbStore.DB, seedData)
+	// Testing
+	want := []store.Habit{
+		{Name: "k8s", LastPerformed: today, Streak: 4},
+		{Name: "piano", LastPerformed: dayBeforeYesterday, Streak: 4},
+		{Name: "code", LastPerformed: dayBeforeYesterday, Streak: 4},
+		{Name: "Go", LastPerformed: yesterday, Streak: 4},
+		{Name: "docker", LastPerformed: yesterday, Streak: 16},
+		{Name: "SQL", LastPerformed: yesterday, Streak: 29},
+		{Name: "NoSQL", LastPerformed: today, Streak: 30},
+	}
+	got, err := dbStore.AllHabits()
+	if err != nil {
+		t.Error(err)
+	}
+	//Todo: figure out why this isn't needed
+
+	//less := func(a, b string) bool { return a < b }
+	//differ := cmp.Diff(want, got, cmpopts.SortSlices(less), cmpopts.IgnoreFields(store.Habit{}, "ID"))
+	//if cmp.Diff(want, got, cmpopts.SortSlices(less), cmpopts.IgnoreFields(store.Habit{}, "ID")) != "" {
+	//	t.Errorf("wanted no difference got: %v,", differ)
+	//}
 	if !cmp.Equal(want, got, cmpopts.IgnoreFields(store.Habit{}, "ID")) {
 		t.Error(cmp.Diff(want, got))
 	}

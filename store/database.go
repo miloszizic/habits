@@ -39,8 +39,7 @@ type HabitStore interface {
 	LastCheckDays(h Habit) int
 	Add(habit Habit)
 	AllHabits() ([]Habit, error)
-	Perform(habit Habit)
-	PerformHabit(h Habit, days int)
+	PerformHabit(h Habit, days int) string
 	GetHabit(name string) (*Habit, error)
 	DeleteHabitByName(name string) error
 }
@@ -189,19 +188,25 @@ func (s *DBStore) Perform(habit Habit) {
 	}
 }
 
-// PerformHabit makes a dissection based on days between current time and last checked date
-func (s *DBStore) PerformHabit(h Habit, days int) {
+// PerformHabit makes a dissection based on days between current time and last checked date and
+//forwards the massage to handler and frontend
+func (s *DBStore) PerformHabit(h Habit, days int) (massage string) {
 	switch {
 	case days == 0:
-		s.Print("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak)
+		massage = fmt.Sprintf("Nice work: you've done the habit '%s' for %v days in a row .\n", h.Name, h.Streak)
+		s.Print(massage)
 	case days == 1 && h.Streak > 15:
 		s.Perform(h)
-		s.Print("You're currently on a %d-day streak for '%s'. Stick to it!\n", h.Streak+1, h.Name)
+		massage = fmt.Sprintf("You're currently on a %d-day streak for '%s'. Stick to it!\n", h.Streak+1, h.Name)
+		s.Print(massage)
 	case days == 1:
 		s.Perform(h)
-		s.Print("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak+1)
+		massage = fmt.Sprintf("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak+1)
+		s.Print(massage)
 	case days >= 2:
 		s.Perform(h)
-		s.Print("You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n", h.Name, days)
+		massage = fmt.Sprintf("You last did the habit '%s' %d days ago, so you're starting a new streak today. Good luck!\n", h.Name, days)
+		s.Print(massage)
 	}
+	return massage
 }

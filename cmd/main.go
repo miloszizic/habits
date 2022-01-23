@@ -21,6 +21,8 @@ func main() {
 	srv := controllers.Server{Store: store}
 
 	r.Get("/", srv.Home)
+	r.Post("/", srv.Delete)
+	r.Post("/perform", srv.PerformHabit)
 
 	r.Get("/habit", srv.Habit)
 	r.Post("/habit", srv.Create)

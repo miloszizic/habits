@@ -3,6 +3,7 @@ package views
 const (
 	AlertLvlError   = "red"
 	AlertLvlSuccess = "green"
+	AlertLvlNeutral = "blue"
 
 	// AlertMsgGeneric is displayed when any random error
 	// is encountered by our backend.
