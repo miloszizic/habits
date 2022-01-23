@@ -4,6 +4,7 @@ package store_test
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -59,6 +60,7 @@ func TestMySqlDatabase(t *testing.T) {
 		"PerformIncreasesStreakIfDoneYesterday":    testPerformIncreasesStreakIfDoneYesterday,
 		"PerformResetsStreakIfDoneBeforeYesterday": testPerformResetsStreakIfDoneBeforeYesterday,
 		"SeedAndPerformHabit":                      testSeedAndPerformHabit,
+		"DeleteHabitByName":                        testDeleteHabitByName,
 	}
 	resetMySqlDB(t, storeMySQL.DB)
 	resetSQLiteDB(t, storeSQLite.DB)
@@ -69,6 +71,16 @@ func TestMySqlDatabase(t *testing.T) {
 		})
 	}
 
+}
+func testDeleteHabitByName(t *testing.T, storeDB *store.DBStore) {
+	storeDB.Add(store.Habit{
+		Name: "Go",
+	})
+	storeDB.DeleteHabitByName("Go")
+	_, err := storeDB.GetHabit("Go")
+	if errors.Unwrap(err) != sql.ErrNoRows {
+		t.Errorf("wanted no rows, got %v", err)
+	}
 }
 func testLastCheckDays(t *testing.T, dbStore *store.DBStore) {
 	tcs := []struct {

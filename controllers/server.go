@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,6 +27,7 @@ func (s Server) Home(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+
 	s.Templates.New = views.Must(views.ParseFS(templates.Files, "home.gohtml", "*.layout.gohtml"))
 	s.Templates.New.Execute(w, habits)
 
@@ -41,23 +43,13 @@ func (s Server) Create(w http.ResponseWriter, r *http.Request) {
 	habit := store.Habit{Name: habitName}
 	s.Templates.New = views.Must(views.ParseFS(templates.Files, "habit.gohtml", "*.layout.gohtml"))
 	exist, err := s.Store.GetHabit(habitName)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			vd.Alert = &views.Alert{
-				Color:   views.AlertLvlSuccess,
-				Message: fmt.Sprintf("You successfully created a %s Habit", habitName),
-			}
-			s.Store.Add(habit)
-			s.Templates.New.Execute(w, vd)
-			return
-		} else {
-			vd.Alert = &views.Alert{
-				Color:   views.AlertLvlError,
-				Message: err.Error(),
-			}
-			s.Templates.New.Execute(w, vd)
-			return
+	if errors.Unwrap(err) == sql.ErrNoRows || exist == nil {
+		vd.Alert = &views.Alert{
+			Color:   views.AlertLvlSuccess,
+			Message: fmt.Sprintf("You successfully created a %s Habit", habitName),
 		}
+		s.Store.Add(habit)
+		s.Templates.New.Execute(w, vd)
 	}
 	if exist != nil {
 		vd.Alert = &views.Alert{
@@ -65,6 +57,8 @@ func (s Server) Create(w http.ResponseWriter, r *http.Request) {
 			Message: "Habit already exists",
 		}
 		s.Templates.New.Execute(w, vd)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 	}
-
 }

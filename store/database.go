@@ -42,6 +42,7 @@ type HabitStore interface {
 	Perform(habit Habit)
 	PerformHabit(h Habit, days int)
 	GetHabit(name string) (*Habit, error)
+	DeleteHabitByName(name string) error
 }
 
 type DBStore struct {
@@ -137,9 +138,18 @@ func (s *DBStore) GetHabit(name string) (*Habit, error) {
 	h := Habit{}
 	err := row.Scan(&h.ID, &h.Name, &h.LastPerformed, &h.Streak)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Habit with error: %v", err)
+		return nil, fmt.Errorf("failed to find Habit with error: %w", err)
 	}
 	return &h, nil
+}
+func (s *DBStore) DeleteHabitByName(name string) error {
+	_, err := s.DB.Exec(
+		`DELETE FROM habits WHERE name=?`, name)
+	if err != nil {
+		fmt.Printf("Error deleting habit: %v", err)
+		return err
+	}
+	return nil
 }
 
 // AllHabits lists all Habits in the database
