@@ -173,11 +173,11 @@ func testGetAllHabits(t *testing.T, dbStore *store.DBStore) {
 	}
 	//Todo: figure out why this isn't needed
 
-	//less := func(a, b string) bool { return a < b }
-	//differ := cmp.Diff(want, got, cmpopts.SortSlices(less), cmpopts.IgnoreFields(store.Habit{}, "ID"))
-	//if cmp.Diff(want, got, cmpopts.SortSlices(less), cmpopts.IgnoreFields(store.Habit{}, "ID")) != "" {
-	//	t.Errorf("wanted no difference got: %v,", differ)
-	//}
+	less := func(a, b string) bool { return a < b }
+	differ := cmp.Diff(want, got, cmpopts.SortSlices(less), cmpopts.IgnoreFields(store.Habit{}, "ID"))
+	if cmp.Diff(want, got, cmpopts.SortSlices(less), cmpopts.IgnoreFields(store.Habit{}, "ID")) != "" {
+		t.Errorf("wanted no difference got: %v,", differ)
+	}
 	if !cmp.Equal(want, got, cmpopts.IgnoreFields(store.Habit{}, "ID")) {
 		t.Error(cmp.Diff(want, got))
 	}

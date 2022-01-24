@@ -153,7 +153,7 @@ func (s *DBStore) DeleteHabitByName(name string) error {
 
 // AllHabits lists all Habits in the database
 func (s *DBStore) AllHabits() ([]Habit, error) {
-	allHabits := []Habit{}
+	var allHabits []Habit
 	rows, err := s.DB.Query(`SELECT ID, name, LastPerformed, streak FROM habits`)
 	if err != nil {
 		fmt.Printf("query error: %v\n", err)
@@ -193,7 +193,7 @@ func (s *DBStore) Perform(habit Habit) {
 func (s *DBStore) PerformHabit(h Habit, days int) (massage string) {
 	switch {
 	case days == 0:
-		massage = fmt.Sprintf("Nice work: you've done the habit '%s' for %v days in a row .\n", h.Name, h.Streak)
+		massage = fmt.Sprintf("You already perfromed '%s' habit today. Your current streak is %v days in a row.\n", h.Name, h.Streak)
 		s.Print(massage)
 	case days == 1 && h.Streak > 15:
 		s.Perform(h)
@@ -201,7 +201,7 @@ func (s *DBStore) PerformHabit(h Habit, days int) (massage string) {
 		s.Print(massage)
 	case days == 1:
 		s.Perform(h)
-		massage = fmt.Sprintf("Nice work: you've done the habit '%s' for %v days in a row Now.\n", h.Name, h.Streak+1)
+		massage = fmt.Sprintf("Nice work: you've done the habit '%s' for %v days in a row.\n", h.Name, h.Streak+1)
 		s.Print(massage)
 	case days >= 2:
 		s.Perform(h)
