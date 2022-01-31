@@ -1,0 +1,32 @@
+# Build the Go Binary
+
+FROM golang:1.17 as habits
+ENV CGO_ENABLED=1 \
+	GOOS=linux
+ARG BUILD_REF
+
+
+
+
+# Copy the source code into container
+COPY . /habits
+
+# Build the service binary
+WORKDIR /habits/cmd
+
+RUN go build -a -ldflags '-linkmode external -extldflags "-static"' .
+
+# Run the Go binary in Alpine.
+
+FROM scratch
+ARG BUILD_DATE
+ARG BUILD_REF
+COPY --from=habits /habits/cmd /habits/
+WORKDIR /habits/
+CMD ["./cmd"]
+
+
+LABEL org.opencontainers.image.create="${BUILD_DATE}" \
+	  org.opencontainers.image.revision="${BUILD_REF}" \
+	  org.opencontainers.image.title="service-habits" \
+	  org.opencontainers.image.Author="Milos Zizic" \

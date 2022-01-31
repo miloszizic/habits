@@ -36,10 +36,10 @@ const (
 )
 
 type HabitStore interface {
-	LastCheckDays(h Habit) int
+	LastCheckDays(habit Habit) int
 	Add(habit Habit)
 	AllHabits() ([]Habit, error)
-	PerformHabit(h Habit, days int) string
+	PerformHabit(habit Habit, days int) string
 	GetHabit(name string) (*Habit, error)
 	DeleteHabitByName(name string) error
 }
@@ -141,6 +141,8 @@ func (s *DBStore) GetHabit(name string) (*Habit, error) {
 	}
 	return &h, nil
 }
+
+// DeleteHabitByName deletes a Habit by name from database
 func (s *DBStore) DeleteHabitByName(name string) error {
 	_, err := s.DB.Exec(
 		`DELETE FROM habits WHERE name=?`, name)
