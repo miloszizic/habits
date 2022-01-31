@@ -1,24 +1,23 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"runtime"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/automaxprocs/maxprocs"
-
 	"github.com/miloszizic/habits/templates"
 
 	"github.com/miloszizic/habits/store"
 	"github.com/miloszizic/habits/views"
 )
-
-var build = "develop"
 
 type Server struct {
 	Store     store.HabitStore
@@ -109,7 +108,53 @@ func (s *Server) PerformHabit(w http.ResponseWriter, r *http.Request) {
 	s.Templates.New.Execute(w, s.Data)
 }
 func RunHTTP() {
+	// THe http server
+	server := &http.Server{Addr: ":3000", Handler: service()}
+	fmt.Printf("started habit service on port %v\n", server.Addr)
+	//// Trying to set k8s core maxprocs
+	//if _, err := maxprocs.Set(); err != nil {
+	//	fmt.Println("maxprocs: %w", err)
+	//}
+	//g := runtime.GOMAXPROCS(0)
+	//fmt.Printf("starting habit service with build: [%s] and [%d] of available CPU cores.\n", build, g)
 
+	serverCtx, serverStopCtx := context.WithCancel(context.Background())
+	// Listen for syscall signals for process to interrupt/quit
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		<-sig
+
+		// Shutdown signal with grace period of 30 seconds
+		shutdownCtx, _ := context.WithTimeout(serverCtx, 30*time.Second)
+
+		go func() {
+			<-shutdownCtx.Done()
+			if shutdownCtx.Err() == context.DeadlineExceeded {
+				log.Fatal("graceful shutdown timed out.. forcing exit.")
+			}
+		}()
+
+		// Trigger graceful shutdown
+		err := server.Shutdown(shutdownCtx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		serverStopCtx()
+	}()
+
+	// Run the server
+	err := server.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
+
+	// Wait for server context to be stopped
+	<-serverCtx.Done()
+
+}
+
+func service() http.Handler {
 	store, err := store.FromSQLite("./habits.db")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "opening %q database: %v\n", err, store)
@@ -125,17 +170,5 @@ func RunHTTP() {
 	r.Get("/habit", srv.Habit)
 	r.Post("/habit", srv.Create)
 
-	if _, err := maxprocs.Set(); err != nil {
-		fmt.Println("maxprocs: %w", err)
-		os.Exit(1)
-	}
-	g := runtime.GOMAXPROCS(0)
-	fmt.Printf("starting habit service with build: [%s] and [%d] of available CPU cores.\n", build, g)
-	//defer log.Println("service ended")
-	//
-	//shutdown := make(chan os.Signal, 1)
-	//signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
-	//<-shutdown
-	//log.Println("stopping habit service")
-	http.ListenAndServe(":3000", r)
+	return r
 }
